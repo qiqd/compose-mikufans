@@ -103,4 +103,15 @@ public class RedDrillBit implements DiscoveryService {
             throw new RuntimeException(e);
         }
     }
+
+    public SubjectSearch.Subject fetchSubject(Integer subjectId) {
+        String url = "/v0/subjects/" + subjectId;
+        Request request = HttpUtil.getRequest(baseUrl + url);
+        try (Response response = HttpUtil.getClient().newCall(request).execute()) {
+            String s = ValidateUtil.validateResponse(response);
+            return JSON.parseObject(s, SubjectSearch.Subject.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

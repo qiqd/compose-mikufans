@@ -1,5 +1,6 @@
 package com.mikufans.ui.component
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
@@ -17,27 +18,31 @@ import com.example.mikufans.R
 import com.mikufans.xmd.teto.entity.SubjectSearch
 
 @Composable
-fun AnimeCard(anime: SubjectSearch.Subject, onTap: (animeId: String) -> Unit = {}) {
-    Column(
-        modifier = Modifier
-            .clip(shape = ShapeDefaults.Medium),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+fun AnimeCard(
+  anime: SubjectSearch.Subject,
+  onTap: (animeId: Int, animeName: String) -> Unit = { _, _ -> }
+) {
+  Column(
+    modifier = Modifier
+      .clip(shape = ShapeDefaults.Medium)
+      .clickable { onTap(anime.id!!, anime.nameCn ?: anime.name ?: "") },
+    verticalArrangement = Arrangement.Top,
+    horizontalAlignment = Alignment.CenterHorizontally
+  ) {
 
-        AsyncImage(
-            modifier = Modifier.aspectRatio(2 / 3f),
-            model = anime.images?.medium,
-            contentDescription = null,
-            placeholder = painterResource(R.drawable.ahhhh),
+    AsyncImage(
+      modifier = Modifier.aspectRatio(2 / 3f),
+      model = anime.images?.medium,
+      contentDescription = null,
+      placeholder = painterResource(R.drawable.ahhhh),
 
-            )
-        Text(
-            text = anime.nameCn ?: anime.name ?: "暂无标题",
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
+      )
+    Text(
+      text = anime.nameCn ?: anime.name ?: "暂无标题",
+      textAlign = TextAlign.Center,
+      maxLines = 1,
+      overflow = TextOverflow.Ellipsis
+    )
+  }
 }
 

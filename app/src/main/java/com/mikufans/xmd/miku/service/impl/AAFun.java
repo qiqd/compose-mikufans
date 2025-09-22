@@ -1,5 +1,7 @@
 package com.mikufans.xmd.miku.service.impl;
 
+import android.util.Log;
+
 import com.alibaba.fastjson.JSON;
 import com.mikufans.xmd.miku.entiry.Anime;
 import com.mikufans.xmd.miku.entiry.AnimeDetail;
@@ -23,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -52,7 +55,8 @@ public class AAFun implements HtmlParser {
         try (Response response = client.newCall(request).execute()) {
             String body = ValidateUtil.validateResponse(response);
             Document document = Jsoup.parse(body);
-            Elements li = document.select("li.hl-list-item");
+            Elements elements = document.select("div.hl-list-wrap");
+            Elements li = elements.select("li.hl-list-item");
             return li.stream().map(item -> {
                 Elements a = item.select("div.hl-item-div a");
                 String status = item.select("span.hl-lc-1.remarks").text();
@@ -65,8 +69,9 @@ public class AAFun implements HtmlParser {
             }).collect(Collectors.toList());
 
         } catch (IOException e) {
-//            log.error("解析搜索结果错误:{}", e.getMessage());
-            throw new RuntimeException("解析搜索结果错误", e);
+            System.out.println(e.getMessage());
+            return Collections.emptyList();
+//            throw new RuntimeException("解析搜索结果错误", e);
         }
     }
 
@@ -77,7 +82,7 @@ public class AAFun implements HtmlParser {
             String body = ValidateUtil.validateResponse(response);
             AnimeDetail animeDetail = new AnimeDetail();
             Document document = Jsoup.parse(body);
-            Elements div = document.select("div.hl-tabs-box ");
+            Elements div = document.select("div.hl-tabs-box");
             List<Source> sources = div.stream().map(item -> {
                 Source source = new Source();
                 List<Episode> episodes = item.select("li.hl-col-xs-4 a").stream().map(a -> {
@@ -88,11 +93,137 @@ public class AAFun implements HtmlParser {
                     return episode;
                 }).collect(Collectors.toList());
                 source.setEpisodes(episodes);
-
-
                 return source;
             }).collect(Collectors.toList());
+            //TODO 补充动漫详细信息
 
+            Anime anime = new Anime();
+
+            // 解析封面图片
+            Elements picElements = document.select(".hl-dc-pic .hl-item-thumb");
+            if (!picElements.isEmpty()) {
+                Element picElement = picElements.first();
+                String coverUrl = picElement.attr("data-original");
+                anime.setCoverUrl(coverUrl);
+            }
+
+            // 解析标题
+            Elements titleElements = document.select(".hl-dc-title");
+            if (!titleElements.isEmpty()) {
+                anime.setTitle(titleElements.first().text());
+            }
+
+            // 解析状态
+            Elements statusElements = document.select(".hl-vod-data .hl-col-xs-12 span.hl-text-conch");
+            if (!statusElements.isEmpty()) {
+                anime.setStatus(statusElements.first().text());
+            }
+
+            // 解析主演
+            Elements actorElements = document.select(".hl-vod-data .hl-col-xs-12").eq(2);
+            if (!actorElements.isEmpty()) {
+                Elements actorLinks = actorElements.select("a");
+                StringBuilder actorBuilder = new StringBuilder();
+                for (int i = 0; i < actorLinks.size(); i++) {
+                    if (i > 0) {
+                        actorBuilder.append(" ");
+                    }
+                    actorBuilder.append(actorLinks.get(i).text());
+                }
+                anime.setActor(actorBuilder.toString());
+            }
+
+            // 解析导演
+            Elements directorElements = document.select(".hl-vod-data .hl-col-xs-12").eq(3);
+            if (!directorElements.isEmpty()) {
+                Elements directorLinks = directorElements.select("a");
+                StringBuilder directorBuilder = new StringBuilder();
+                for (int i = 0; i < directorLinks.size(); i++) {
+                    if (i > 0) {
+                        directorBuilder.append(" ");
+                    }
+                    directorBuilder.append(directorLinks.get(i).text());
+                }
+                anime.setDirector(directorBuilder.toString());
+            }
+
+            // 解析年份
+            Elements yearElements = document.select(".hl-vod-data .hl-col-xs-12.hl-col-sm-4");
+            if (yearElements.size() > 0) {
+                Element yearElement = yearElements.get(0);
+                String yearText = yearElement.text();
+                // 提取年份数字
+                String year = yearText.replaceAll("\\D+", "");
+                if (!year.isEmpty()) {
+                    try {
+                        anime.setYear(Integer.parseInt(year));
+                    } catch (NumberFormatException e) {
+                        Log.e("解析年份失败: {}", yearText);
+                    }
+                }
+            }
+
+            // 解析类型
+            Elements typeElements = document.select(".hl-vod-data .hl-col-xs-12.hl-col-sm-4");
+            if (typeElements.size() > 2) {
+                Element typeElement = typeElements.get(2);
+                Elements typeLinks = typeElement.select("a");
+                StringBuilder typeBuilder = new StringBuilder();
+                for (int i = 0; i < typeLinks.size(); i++) {
+                    if (i > 0) {
+                        typeBuilder.append(" ");
+                    }
+                    typeBuilder.append(typeLinks.get(i).text());
+                }
+                anime.setType(typeBuilder.toString());
+            }
+
+            // 解析上映时间
+            Elements releaseElements = document.select(".hl-vod-data .hl-col-xs-12.hl-col-sm-4");
+            if (releaseElements.size() > 4) {
+                Element releaseElement = releaseElements.get(4);
+                String releaseText = releaseElement.text();
+                anime.setUpdateTime(releaseText);
+            }
+
+//            // 解析语言
+//            Elements languageElements = document.select(".hl-vod-data .hl-col-xs-12.hl-col-sm-4");
+//            if (languageElements.size() > 5) {
+//                Element languageElement = languageElements.get(5);
+//                String languageText = languageElement.text();
+//                // 去掉"语言："前缀
+//                if (languageText.startsWith("语言：")) {
+//                    languageText = languageText.substring(3);
+//                }
+//                anime.setLanguage(languageText);
+//            }
+
+            // 解析简介
+            Elements descriptionElements = document.select(".hl-vod-data .hl-col-xs-12.blurb");
+            if (!descriptionElements.isEmpty()) {
+                String description = descriptionElements.first().text();
+                // 去掉"简介："前缀
+                if (description.startsWith("简介：")) {
+                    description = description.substring(3);
+                }
+                anime.setDescription(description);
+            }
+
+            // 解析评分
+            Elements ratingElements = document.select(".hl-score-nums span");
+            if (!ratingElements.isEmpty()) {
+                try {
+                    double rating = Double.parseDouble(ratingElements.first().text());
+                    anime.setRating(rating);
+                } catch (NumberFormatException e) {
+                    Log.e("解析评分失败: {}", ratingElements.first().text());
+                }
+            }
+
+            // 设置ID
+//            anime.setId(String.valueOf(animeId));
+            // 设置动漫信息到动漫详情对象
+            animeDetail.setAnime(anime);
             animeDetail.setSources(sources);
             return animeDetail;
         } catch (IOException e) {

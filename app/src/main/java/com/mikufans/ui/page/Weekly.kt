@@ -22,8 +22,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
 import com.mikufans.xmd.access.AAFunAccessPoint
 import com.mikufans.xmd.miku.entiry.Anime
@@ -33,7 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Composable
-fun Weekly() {
+fun Weekly(navController: NavController) {
     val anime = Anime();
     anime.coverUrl = "https://img.pan.kg/images/363957_pgptl.webp"
     anime.title = "夏日口袋"
@@ -77,7 +79,10 @@ fun Weekly() {
 fun WeeklyPageContent(weekDay: List<DailySchedule.Item>?) {
     val lazyGridState = rememberLazyGridState()
     if (weekDay == null) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
             CircularProgressIndicator()
         }
     } else {

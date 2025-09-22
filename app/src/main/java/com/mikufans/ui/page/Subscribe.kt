@@ -8,10 +8,11 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.mikufans.xmd.miku.entiry.Anime
 
 @Composable
-fun Subscribe() {
+fun Subscribe(navController: NavController) {
     val anime = Anime();
     anime.coverUrl = "https://img.pan.kg/images/363957_pgptl.webp"
     anime.title = "夏日口袋"

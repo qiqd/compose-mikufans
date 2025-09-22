@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
 import com.mikufans.xmd.access.AAFunAccessPoint
 import com.mikufans.xmd.teto.entity.SubjectSearch
@@ -38,75 +39,81 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Index() {
-    var keyword by rememberSaveable { mutableStateOf("") }
-    var searchResult by rememberSaveable {
-        mutableStateOf<List<SubjectSearch.Subject>>(emptyList())
-    }
-    var isLoading by rememberSaveable { mutableStateOf(false) }
-    val focusManager = LocalFocusManager.current
-    val coroutineScope = rememberCoroutineScope()
-    Column(modifier = Modifier.padding(8.dp)) {
-        TextField(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(shape = ShapeDefaults.Small),
-            value = keyword,
-            onValueChange = { keyword = it },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            placeholder = { Text("请输入关键字") },
-            keyboardActions = KeyboardActions(
-                onSearch = {
-                    Log.i("Index-Search", keyword)
-                    coroutineScope.launch(Dispatchers.IO) {
-                        try {
-                            isLoading = true
-                            val search = AAFunAccessPoint().search(keyword, 1, 20)
-                            val result = search.data ?: emptyList()
-                            withContext(Dispatchers.Main) {
-                                searchResult = result
-                                Log.i("search", search.toString())
-                            }
-                        } catch (e: Exception) {
-                            // 处理错误
-                            withContext(Dispatchers.Main) {
-                                searchResult = emptyList()
-                            }
-                            Log.e("Index-Search", "搜索失败", e)
-                        } finally {
-                            withContext(Dispatchers.Main) {
-                                isLoading = false
-                            }
-                        }
-                    }
-                    focusManager.clearFocus()
-                }
-            ),
-        )
+fun Index(navController: NavController) {
+  var keyword by rememberSaveable { mutableStateOf("") }
+  var searchResult by rememberSaveable {
+    mutableStateOf<List<SubjectSearch.Subject>>(emptyList())
+  }
+  var isLoading by rememberSaveable { mutableStateOf(false) }
+  val focusManager = LocalFocusManager.current
+  val coroutineScope = rememberCoroutineScope()
 
-        // 添加加载指示器
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
+  Column(modifier = Modifier.padding(8.dp)) {
+    TextField(
+      modifier = Modifier
+        .fillMaxWidth()
+        .clip(shape = ShapeDefaults.Small),
+      value = keyword,
+      onValueChange = { keyword = it },
+      keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+      placeholder = { Text("请输入关键字") },
+      keyboardActions = KeyboardActions(
+        onSearch = {
+          Log.i("Index-Search", keyword)
+          coroutineScope.launch(Dispatchers.IO) {
+            try {
+              isLoading = true
+              val search = AAFunAccessPoint().search(keyword, 1, 20)
+              val result = search.data ?: emptyList()
+              withContext(Dispatchers.Main) {
+                searchResult = result
+//                Log.i("search", search.toString())
+              }
+            } catch (e: Exception) {
+              // 处理错误
+              withContext(Dispatchers.Main) {
+                searchResult = emptyList()
+              }
+              Log.e("Index-Search", "搜索失败", e)
+            } finally {
+              withContext(Dispatchers.Main) {
+                isLoading = false
+              }
             }
-        }
+          }
+          focusManager.clearFocus()
+        }),
+    )
 
-        LazyVerticalGrid(
-            modifier = Modifier.padding(top = 5.dp),
-            columns = GridCells.Fixed(3),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(searchResult) {
-                AnimeCard(anime = it, onTap = {
-                    Log.i("iii", it)
-                })
-            }
-        }
+    // 添加加载指示器
+    if (isLoading) {
+      Box(
+        modifier = Modifier
+          .fillMaxSize()
+          .padding(16.dp), contentAlignment = Alignment.Center
+      ) {
+        CircularProgressIndicator()
+      }
     }
+
+    LazyVerticalGrid(
+      modifier = Modifier.padding(top = 5.dp),
+      columns = GridCells.Fixed(3),
+      horizontalArrangement = Arrangement.spacedBy(8.dp),
+      verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+      items(searchResult) {
+        AnimeCard(anime = it) { animeId, animeName ->
+          navController.navigate("animeDetail/$animeId/$animeName") {
+//            // 隐藏底部导航栏
+//            popUpTo(navController.graph.findStartDestination().id) {
+//              saveState = true
+//            }
+            launchSingleTop = true
+            restoreState = true
+          }
+        }
+      }
+    }
+  }
 }
