@@ -2,10 +2,12 @@ package com.mikufans.ui.page
 
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -49,19 +51,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.mikufans.R
+import com.mikufans.util.GifLoader
 import com.mikufans.util.LocalStorage
-import com.mikufans.xmd.access.AAFunAccessPoint
+import com.mikufans.xmd.access.GiligiliAccessPoint
 import com.mikufans.xmd.miku.entiry.Episode
 import com.mikufans.xmd.miku.entiry.History
 import com.mikufans.xmd.miku.entiry.PlayInfo
@@ -75,30 +79,45 @@ import kotlinx.coroutines.launch
 fun Player(animeId: Int, navController: NavController?, episodeList: List<Episode>) {
   val content = LocalContext.current
   val tabs = arrayOf("简介", "剧集")
+  var isLove by rememberSaveable { mutableStateOf(false) }
+  var historyList by rememberSaveable { mutableStateOf<List<History>>(emptyList()) }
   var currentPosition by rememberSaveable { mutableLongStateOf(0L) }
   var currentPlayingEpisodeIndex by rememberSaveable { mutableIntStateOf(0) }
   var currentPlayingEpisodeId by remember { mutableStateOf(episodeList[0].id) }
   var isLoading by rememberSaveable { mutableStateOf(true) }
-  var playInfo by rememberSaveable { mutableStateOf<PlayInfo?>(null) }
+  var playInfo by rememberSaveable { mutableStateOf(PlayInfo()) }
   var subject by rememberSaveable { mutableStateOf<SubjectSearch.Subject?>(null) }
   val episodes by rememberSaveable { mutableStateOf<List<Episode>?>(episodeList) }
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
   val coroutineScope = rememberCoroutineScope()
   LaunchedEffect(Unit) {
-    isLoading = true;
+    isLoading = true
+    historyList =
+      LocalStorage.getList(content, "view:history", History::class.java)?.toMutableList()
+        ?: mutableListOf()
+    val indexOfFirst = historyList.indexOfFirst { it.id == animeId }
+    if (indexOfFirst >= 0) {
+      currentPlayingEpisodeId = historyList[indexOfFirst].episodeId
+      currentPlayingEpisodeIndex = historyList[indexOfFirst].episodeIndex ?: 0
+      playInfo.currentEpisodeUrl = historyList[indexOfFirst].videoUrl
+      currentPosition = historyList[indexOfFirst].position ?: 0L
+      isLove = historyList[indexOfFirst].isLove
+    }
     coroutineScope.launch(Dispatchers.IO) {
       Log.i("player.source", episodes.toString())
       try {
         subject = RedDrillBit().fetchSubject(animeId)
-        playInfo = AAFunAccessPoint().getVideoUrl(currentPlayingEpisodeId)
+        playInfo.currentEpisodeUrl ?: let {
+          playInfo = GiligiliAccessPoint().getVideoUrl(currentPlayingEpisodeId)
+        }
       } catch (e: Exception) {
         Log.e("player.error", e.toString())
         launch(Dispatchers.Main) {
           Toast.makeText(content, "加载数据失败", Toast.LENGTH_SHORT).show()
         }
       } finally {
-        isLoading = false;
+        isLoading = false
       }
     }
   }
@@ -107,29 +126,30 @@ fun Player(animeId: Int, navController: NavController?, episodeList: List<Episod
       val history = History(
         id = animeId,
         name = subject?.name,
+        nameCn = subject?.nameCn,
         cover = subject?.images?.large,
         episodeId = currentPlayingEpisodeId,
         episodeIndex = currentPlayingEpisodeIndex,
-        position = currentPosition,
+        position = currentPosition - 5000,
+        isLove = isLove,
+        videoUrl = playInfo.currentEpisodeUrl,
         time = System.currentTimeMillis()
       )
-      val oldList = LocalStorage.getList(content, "view:history", History::class.java)
-        ?.toMutableList() ?: mutableListOf()
-      val index = oldList.indexOfFirst { it.id == animeId }
-
+      val currentHistoryList = historyList.toMutableList()
+      val index = currentHistoryList.indexOfFirst { it.id == animeId }
       if (index >= 0) {
-        oldList[index] = history
+        currentHistoryList[index] = history
       } else {
-        oldList.add(history)
+        currentHistoryList.add(history)
       }
-      LocalStorage.setList(content, "view:history", oldList)
+      LocalStorage.setList(content, "view:history", currentHistoryList.toList())
     }
   }
 
   Scaffold(
     topBar = {
       TopAppBar(
-        title = { Text("Player", textAlign = TextAlign.Center) },
+        title = { Text(subject?.nameCn ?: subject?.name ?: "", textAlign = TextAlign.Center) },
         navigationIcon = {
           Icon(
             Icons.Outlined.ArrowBackIosNew,
@@ -144,12 +164,15 @@ fun Player(animeId: Int, navController: NavController?, episodeList: List<Episod
             .fillMaxWidth()
             .aspectRatio(16f / 9f)
         ) {
-          if (isLoading) {
+          if (isLoading || playInfo.currentEpisodeUrl == null) {
             Box(modifier = Modifier.fillMaxSize()) {
               CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
           } else {
-            ExoVideoPlayer(playInfo?.currentEpisodeUrl!!, onExit = { currentPosition = it })
+            ExoVideoPlayer(
+              playInfo.currentEpisodeUrl!!,
+              currentPosition,
+              onExit = { currentPosition = it })
           }
         }
         TabRow(selectedTabIndex = tabIndex.value, Modifier.padding(horizontal = 10.dp)) {
@@ -167,13 +190,17 @@ fun Player(animeId: Int, navController: NavController?, episodeList: List<Episod
 
           ) { page ->
           when (page) {
-            0 -> AnimeInfoPage(subject)
-            1 -> EpisodePage(episodes, currentPlayingEpisodeId!!) { newId, index ->
+            0 -> AnimeInfoPage(subject, isLove) { isLove = it }
+
+            1 -> EpisodePage(
+              episodes = episodes,
+              activeIndex = currentPlayingEpisodeIndex
+            ) { newId, index ->
               isLoading = true
               currentPlayingEpisodeIndex = index
-              currentPlayingEpisodeId = newId;
+              currentPlayingEpisodeId = newId
               coroutineScope.launch(Dispatchers.IO) {
-                playInfo = AAFunAccessPoint().getVideoUrl(currentPlayingEpisodeId)
+                playInfo = GiligiliAccessPoint().getVideoUrl(currentPlayingEpisodeId)
                 isLoading = false
               }
             }
@@ -184,13 +211,14 @@ fun Player(animeId: Int, navController: NavController?, episodeList: List<Episod
 }
 
 @Composable
-fun ExoVideoPlayer(videoUrl: String, onExit: (Long) -> Unit = {}) {
+fun ExoVideoPlayer(videoUrl: String, currentPosition: Long = 0, onExit: (Long) -> Unit = {}) {
   val context = LocalContext.current
   val exoPlayer = remember(context) {
     ExoPlayer.Builder(context).build().apply {
       val mediaItem = MediaItem.fromUri(videoUrl.replaceFirst("http://", "https://"))
       setMediaItem(mediaItem)
       prepare()
+      seekTo(currentPosition)
       playWhenReady = true
     }
   }
@@ -199,6 +227,12 @@ fun ExoVideoPlayer(videoUrl: String, onExit: (Long) -> Unit = {}) {
     onDispose {
       exoPlayer.release()
     }
+  }
+  LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
+    exoPlayer.playWhenReady = false
+  }
+  LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+    exoPlayer.playWhenReady = true
   }
   DisposableEffect(exoPlayer) {
     onDispose {
@@ -225,7 +259,11 @@ fun ExoVideoPlayer(videoUrl: String, onExit: (Long) -> Unit = {}) {
 
 
 @Composable
-fun AnimeInfoPage(subject: SubjectSearch.Subject?) {
+fun AnimeInfoPage(
+  subject: SubjectSearch.Subject?,
+  isLove: Boolean = false,
+  loveHandle: (Boolean) -> Unit
+) {
   subject?.let { anime ->
     LazyColumn(
       modifier = Modifier
@@ -246,7 +284,7 @@ fun AnimeInfoPage(subject: SubjectSearch.Subject?) {
               .clip(MaterialTheme.shapes.medium),
             model = anime.images?.large ?: anime.images?.medium,
             contentDescription = anime.nameCn ?: anime.name,
-            placeholder = painterResource(R.drawable.ahhhh),
+            placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current),
             contentScale = ContentScale.Crop
           )
 
@@ -281,6 +319,29 @@ fun AnimeInfoPage(subject: SubjectSearch.Subject?) {
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 4.dp)
               )
+            }
+            AnimatedContent(
+              targetState = isLove,
+//              transitionSpec = { fadeIn() togetherWith fadeOut() },
+              label = "loveToggle"
+            ) { isLove ->
+              if (isLove) {
+                Button(
+                  modifier = Modifier
+                    .width(150.dp)
+                    .padding(0.dp),
+                  onClick = { loveHandle(false) }) {
+                  Text("追番中")
+                }
+              } else {
+                OutlinedButton(
+                  modifier = Modifier
+                    .width(150.dp)
+                    .padding(0.dp),
+                  onClick = { loveHandle(true) }) {
+                  Text("追番")
+                }
+              }
             }
           }
         }
@@ -356,16 +417,17 @@ fun AnimeInfoPage(subject: SubjectSearch.Subject?) {
 @Composable
 fun EpisodePage(
   episodes: List<Episode>?,
-  currentPlayingEpisodeId: String,
+  activeIndex: Int = 0,
   onEpisodeChange: (String, Int) -> Unit
 ) {
-  var activeIndex by rememberSaveable { mutableIntStateOf(0) };
+  var activeIndex by rememberSaveable { mutableIntStateOf(activeIndex) }
   episodes?.let { episodeList ->
     LazyVerticalGrid(
       columns = GridCells.Fixed(4),
       modifier = Modifier
         .fillMaxSize()
         .padding(16.dp),
+      contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
       horizontalArrangement = Arrangement.spacedBy(8.dp),
       verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {

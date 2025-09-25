@@ -31,6 +31,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
+import com.mikufans.ui.nav.Navigation
 import com.mikufans.xmd.access.AAFunAccessPoint
 import com.mikufans.xmd.teto.entity.SubjectSearch
 import kotlinx.coroutines.Dispatchers
@@ -104,14 +105,7 @@ fun Index(navController: NavController) {
     ) {
       items(searchResult) {
         AnimeCard(anime = it) { animeId, animeName ->
-          navController.navigate("animeDetail/$animeId/$animeName") {
-//            // 隐藏底部导航栏
-//            popUpTo(navController.graph.findStartDestination().id) {
-//              saveState = true
-//            }
-            launchSingleTop = true
-            restoreState = true
-          }
+          Navigation.navigateToAnimeDetail(navController, animeId, animeName)
         }
       }
     }

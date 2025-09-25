@@ -38,9 +38,9 @@ public class RedDrillBit implements DiscoveryService {
     public SubjectSearch fetchSearchResult(String keyword, Integer page, Integer size) {
         String searchUrl = "/v0/search/subjects";
         HashMap<String, Object> body = new HashMap<>();
-        HashMap<String, Object> params = new HashMap<>();
-        params.put("limit", page);
-        params.put("offset", size);
+//        HashMap<String, Object> params = new HashMap<>();
+//        params.put("limit", page);
+//        params.put("offset", size);
         body.put("keyword", keyword);
         body.put("sort", "rank");
         Map<String, Object> filter = new HashMap<>();

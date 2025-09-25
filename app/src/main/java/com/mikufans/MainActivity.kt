@@ -1,6 +1,5 @@
 package com.mikufans
 
-import AnimeDetail
 import Weekly
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -27,6 +26,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.alibaba.fastjson.JSON
 import com.mikufans.ui.nav.BottomNavigationItem
+import com.mikufans.ui.nav.Navigation
+import com.mikufans.ui.page.AnimeDetail
+import com.mikufans.ui.page.HistoryRecord
 import com.mikufans.ui.page.Index
 import com.mikufans.ui.page.Me
 import com.mikufans.ui.page.Player
@@ -51,7 +53,7 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen() {
-  val navController = rememberNavController();
+  val navController = rememberNavController()
   val navBackStackEntry by navController.currentBackStackEntryAsState()
   val currentDestination = navBackStackEntry?.destination?.route
   val screens = listOf(
@@ -112,17 +114,20 @@ fun MainScreen() {
       composable(BottomNavigationItem.Weekly.route) { Weekly(navController) }
       composable(BottomNavigationItem.Subscribe.route) { Subscribe(navController) }
       composable(BottomNavigationItem.Me.route) { Me(navController) }
-      composable("animeDetail/{animeId}/{animeName}") { backStackEntry ->
+      composable(Navigation.ANIME_DETAIL + "/{animeId}/{animeName}") { backStackEntry ->
         val animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
         val animeName = backStackEntry.arguments?.getString("animeName") ?: ""
         AnimeDetail(animeId.toInt(), animeName, navController)
       }
-      composable("animePlayer/{animeId}/{episodes}") { backStackEntry ->
+      composable(Navigation.ANIME_PLAYER + "/{animeId}/{episodes}") { backStackEntry ->
         val animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
         var episodes = backStackEntry.arguments?.getString("episodes") ?: ""
         episodes = URLDecoder.decode(episodes, "UTF-8")
         val source = JSON.parseArray(episodes, Episode::class.java)
         Player(animeId.toInt(), navController, source)
+      }
+      composable(Navigation.HISTORY) {
+        HistoryRecord(navController)
       }
     }
   }

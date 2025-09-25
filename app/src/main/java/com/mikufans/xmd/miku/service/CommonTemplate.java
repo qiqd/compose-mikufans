@@ -25,18 +25,29 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
-
-@Data
-@Slf4j
 public class CommonTemplate implements HtmlParser {
     private String baseUrl;
     private String blankReg = "[\\s\u3000]+";
+
+    public String getBlankReg() {
+        return blankReg;
+    }
+
+    public void setBlankReg(String blankReg) {
+        this.blankReg = blankReg;
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public void setBaseUrl(String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
 
     /**
      * 获取搜索结果
@@ -68,12 +79,20 @@ public class CommonTemplate implements HtmlParser {
                 String director = element.select("div.thumb-director a:not(:first-child)").stream().map(Element::text).collect(Collectors.joining("•"));
                 String actor = element.select("div.thumb-actor a:not(:first-child)").stream().map(Element::text).collect(Collectors.joining("•"));
                 String description = element.select("span.cor5.thumb-blurb").text().replaceAll(blankReg, "");
-                Anime anime = new Anime(href, title, description, baseUrl + cover, director, actor, type, 0, 0.0, status, "");
+                Anime anime = new Anime();
+                anime.setId(href);
+                anime.setTitle(title);
+                anime.setDescription(description);
+                anime.setDirector(director);
+                anime.setActor(actor);
+                anime.setType(type);
+                anime.setStatus(status);
+                anime.setCoverUrl(cover);
                 animeList.add(anime);
             }
             return animeList;
         } catch (IOException e) {
-//            log.error("获取搜索结果失败: {}", e.getMessage());
+//      log.error("获取搜索结果失败: {}", e.getMessage());
             throw new Exception("获取搜索结果失败", e);
         }
     }
@@ -115,16 +134,16 @@ public class CommonTemplate implements HtmlParser {
                 sources.add(source);
             }
             AnimeDetail animeDetail = new AnimeDetail();
-            Anime anime = new Anime();
             animeDetail.setSources(sources);
+            Anime anime = new Anime();
             anime.setId(detailUrl);
-            anime.setCoverUrl(baseUrl + coverImg);
             anime.setTitle(title);
-            anime.setStatus(status);
+            anime.setDescription(description);
             anime.setDirector(director);
             anime.setActor(actor);
             anime.setType(type);
-            anime.setDescription(description);
+            anime.setStatus(status);
+            anime.setCoverUrl(coverImg);
             animeDetail.setAnime(anime);
             return animeDetail;
         } catch (IOException e) {

@@ -40,11 +40,14 @@ android {
 }
 
 dependencies {
+  // Compose Video 视频播放库
+  implementation("androidx.media3:media3-exoplayer:1.8.0")
+  implementation("androidx.media3:media3-exoplayer-dash:1.8.0")
+  implementation("androidx.media3:media3-ui:1.8.0")
+  // Coil 图片加载库
+  implementation("io.coil-kt:coil-compose:2.6.0")
+  implementation("io.coil-kt:coil-gif:2.6.0")
 
-  implementation("androidx.media3:media3-exoplayer:1.1.1")
-  implementation("androidx.media3:media3-ui:1.1.1")
-  implementation("androidx.media3:media3-exoplayer-dash:1.1.1")
-  implementation("androidx.media3:media3-exoplayer-hls:1.1.1")
 
   implementation(libs.material3)
   implementation(libs.androidx.foundation)

@@ -24,7 +24,7 @@ data class EpisodeResult(
    */
   var offset: Int? = null
 ) : java.io.Serializable {
- 
+
   /**
    * 剧集信息实体类
    */

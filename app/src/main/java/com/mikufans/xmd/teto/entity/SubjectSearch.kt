@@ -25,7 +25,7 @@ data class SubjectSearch(
    * 每页偏移量
    */
   var offset: Int? = null
-) : java.io.Serializable {
+) : Serializable {
 
   /**
    * 条目信息实体类
@@ -90,7 +90,7 @@ data class SubjectSearch(
      * 收藏信息
      */
     var collection: Collection? = null
-  ) : java.io.Serializable {
+  ) : Serializable {
 
     /**
      * 图片信息实体类
@@ -135,7 +135,7 @@ data class SubjectSearch(
        * 信息值
        */
       var value: Any? = null
-    ) : java.io.Serializable
+    ) : Serializable
 
     /**
      * 评分信息实体类
@@ -160,7 +160,7 @@ data class SubjectSearch(
        * 平均分
        */
       var score: Double? = null
-    ) : java.io.Serializable {
+    ) : Serializable {
 
       /**
        * 各分数段评分人数实体类
@@ -215,7 +215,7 @@ data class SubjectSearch(
          * 10分人数
          */
         var ten: Int? = null
-      ) : java.io.Serializable
+      ) : Serializable
     }
 
     /**
@@ -246,6 +246,6 @@ data class SubjectSearch(
        * 在看人数
        */
       var doing: Int? = null
-    ) : java.io.Serializable
+    ) : Serializable
   }
 }
