@@ -6,9 +6,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,10 +13,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,19 +25,14 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
-import androidx.compose.material.icons.outlined.Fullscreen
-import androidx.compose.material.icons.outlined.Pause
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -52,7 +42,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -69,16 +58,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.mikufans.R
+import com.mikufans.ui.component.SimplePlayer
 import com.mikufans.util.GifLoader
 import com.mikufans.util.LocalStorage
 import com.mikufans.util.Orientation
@@ -115,7 +102,7 @@ fun Player(
 
   var currentPlayingEpisodeIndex by rememberSaveable { mutableIntStateOf(0) }
   var currentPlayingEpisodeId by rememberSaveable { mutableStateOf(episodeList[0].id) }
-  var isLoading by rememberSaveable { mutableStateOf(true) }
+  var isLoading by rememberSaveable { mutableStateOf(false) }
   var playInfo by rememberSaveable { mutableStateOf(PlayInfo()) }
   var subject by rememberSaveable { mutableStateOf<SubjectSearch.Subject?>(null) }
   val episodes by rememberSaveable { mutableStateOf<List<Episode>?>(episodeList) }
@@ -240,9 +227,10 @@ fun Player(
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
           }
         } else {
-          ComposePlayer(
+          SimplePlayer(
             exoPlayer,
             playInfo,
+            isFullScreen = isFullscreen,
             modifier = if (isLandscape()) Modifier.padding(horizontal = 50.dp) else Modifier.fillMaxSize(),
 //            onCurrentPosition = { currentPosition = it },
             onFullScreenButtonClick = {
@@ -295,122 +283,6 @@ fun Player(
 fun isLandscape(): Boolean =
   LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
-/* ====================== 播放器 UI 壳 ====================== */
-@Composable
-fun ComposePlayer(
-  exoPlayer: ExoPlayer,
-  playInfo: PlayInfo,
-  modifier: Modifier,
-  onFullScreenButtonClick: () -> Unit = {},
-  onCurrentPosition: (Long) -> Unit = {}
-) {
-//  val exoPlayer = globalPlayer ?: return/* 实时进度 & 拖动状态 */
-  var progress by rememberSaveable { mutableFloatStateOf(0f) }
-  var isDragging by rememberSaveable { mutableStateOf(false) }
-  val total by remember(exoPlayer.duration) {
-    derivedStateOf {
-      exoPlayer.duration.coerceAtLeast(
-        0L
-      )
-    }
-  }/* ② 首次/历史进度：拿到总时长后一次性同步 progress */
-  LaunchedEffect(total) {
-    if (!isDragging && total > 0) {
-      progress = exoPlayer.currentPosition.toFloat() / total
-    }
-  }
-  var showController by rememberSaveable { mutableStateOf(false) }/* 播放中更新进度（拖动时不更新） */
-
-  /* 切集后重置进度 */
-  LaunchedEffect(playInfo.currentEpisodeUrl) {
-    progress = 0f
-    isDragging = false
-  }
-  LaunchedEffect(exoPlayer) {
-    while (true) {
-      kotlinx.coroutines.delay(200)
-      val dur = total
-      if (!isDragging && dur > 0) {
-        progress = exoPlayer.currentPosition.toFloat() / dur
-        onCurrentPosition(exoPlayer.currentPosition)
-      }
-    }
-  }
-
-
-  Box(
-    modifier = modifier
-      .clickable { showController = !showController }
-      .padding(if (isLandscape()) PaddingValues(vertical = 30.dp) else PaddingValues(0.dp))) {
-    /* 原来的 PlayerView */
-    AndroidView(
-      factory = {
-        PlayerView(it).apply {
-          player = exoPlayer
-          useController = false
-        }
-      }, modifier = Modifier
-        .fillMaxHeight()
-        .padding(if (isLandscape()) PaddingValues(10.dp) else PaddingValues(0.dp))
-    )
-
-    AnimatedVisibility(
-      modifier = Modifier.align(Alignment.BottomCenter),
-      visible = showController,
-      enter = fadeIn(),
-      exit = fadeOut()
-    ) {
-      /* 底部控制栏：按钮 + 进度条 */
-      Column(
-        modifier = Modifier
-          .align(Alignment.BottomCenter)
-          .fillMaxWidth()
-          .padding(8.dp)
-      ) {
-        /* 第二行：进度条 */
-        Slider(
-          value = progress,
-          onValueChange = { isDragging = true; progress = it },
-          onValueChangeFinished = {
-            val dur = exoPlayer.duration
-            if (dur > 0) exoPlayer.seekTo((progress * dur).toLong())
-            isDragging = false
-          },
-          modifier = Modifier
-            .fillMaxWidth()
-            .height(24.dp)
-        )/* 第一行：播放/暂停、时间、全屏 */
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.SpaceBetween,
-          modifier = Modifier.fillMaxWidth()
-        ) {
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { exoPlayer.playWhenReady = !exoPlayer.playWhenReady }) {
-              Icon(
-                imageVector = if (exoPlayer.playWhenReady) Icons.Outlined.Pause
-                else Icons.Outlined.PlayArrow,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-              )
-            }
-            Text(
-              text = "${formatTime(exoPlayer.currentPosition)} / ${formatTime(total)}",
-              style = MaterialTheme.typography.bodyMedium
-            )
-          }
-          IconButton(onClick = onFullScreenButtonClick) {
-            Icon(
-              imageVector = Icons.Outlined.Fullscreen,
-              contentDescription = "Fullscreen",
-              tint = MaterialTheme.colorScheme.primary
-            )
-          }
-        }
-      }
-    }
-  }
-}
 
 /* ====================== 简介页 ====================== */
 @Composable
