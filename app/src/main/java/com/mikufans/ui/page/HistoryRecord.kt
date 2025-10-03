@@ -19,13 +19,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
+import com.mikufans.ui.component.EmptyCompose
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.LocalStorage
 import com.mikufans.xmd.miku.entiry.History
@@ -36,8 +37,7 @@ import com.mikufans.xmd.teto.entity.SubjectSearch
 fun HistoryRecord(navController: NavController) {
   val context = LocalContext.current
   val lazyGridState = rememberLazyGridState()
-  var historyList by rememberSaveable { mutableStateOf<List<History>>(emptyList()) }
-
+  var historyList by remember { mutableStateOf<List<History>>(emptyList()) }
   LaunchedEffect(Unit) {
     historyList =
       LocalStorage.getList(context, "view:history", History::class.java)?.toMutableList()
@@ -61,11 +61,9 @@ fun HistoryRecord(navController: NavController) {
         .padding(innerPadding),
 
 
-
-
-    ) {
+      ) {
       if (historyList.isEmpty()) {
-        Text(text = "暂无历史记录")
+        EmptyCompose(text = "暂无历史记录")
       } else {
         LazyVerticalGrid(
           columns = GridCells.Fixed(3), state = lazyGridState,

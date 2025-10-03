@@ -108,12 +108,6 @@ fun About(navController: NavController?) {
           modifier = Modifier.padding(bottom = 8.dp)
         )
       }
-
-      val apis = listOf(
-        "Bangumi 番组计划（api.bgm.tv）" to "https://github.com/bangumi/api/blob/master/README.md",
-        "Giligili 源（仅供测试）" to "https://github.com/xxx/giligili",   // 换成真实 ToS 或仓库
-      )
-
       items(apis.size) { i ->
         val (name, url) = apis[i]
         Card(

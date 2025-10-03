@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -16,10 +15,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
+import com.mikufans.ui.component.EmptyCompose
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.LocalStorage
 import com.mikufans.xmd.miku.entiry.Anime
@@ -45,7 +44,7 @@ fun Subscribe(navController: NavController) {
 //    horizontalAlignment = Alignment.CenterHorizontally
   ) {
     if (!historyList.any { it.isLove }) {
-      Text("暂无追番", textAlign = TextAlign.Center)
+      EmptyCompose()
     } else {
       LazyVerticalGrid(
         columns = GridCells.Fixed(3),

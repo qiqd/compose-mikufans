@@ -75,9 +75,7 @@ fun MainScreen(activity: ComponentActivity) {
     BottomNavigationItem.Me.route -> "我的"
     else -> ""
   }
-  // 判断是否显示导航栏（顶部和底部）
-  val showNavigationBar =
-    screens.stream().anyMatch { it.route == currentDestination } || currentDestination == null
+  val showNavigationBar = screens.any { it.route == currentDestination }
   Scaffold(
     topBar = {
       AnimatedVisibility(visible = showNavigationBar, enter = fadeIn(), exit = fadeOut()) {
@@ -110,6 +108,8 @@ fun MainScreen(activity: ComponentActivity) {
     },
   ) { innerPadding ->
     NavHost(
+      enterTransition = { if (showNavigationBar) fadeIn() else EnterTransition.None },
+      exitTransition = { if (showNavigationBar) fadeOut() else ExitTransition.None },
       navController = navController,
       startDestination = BottomNavigationItem.Index.route,
       modifier = Modifier.padding(if (showNavigationBar) innerPadding else PaddingValues(0.dp))
@@ -118,7 +118,11 @@ fun MainScreen(activity: ComponentActivity) {
       composable(BottomNavigationItem.Index.route) { Index(navController) }
       composable(BottomNavigationItem.Weekly.route) { Weekly(navController) }
       composable(BottomNavigationItem.Subscribe.route) { Subscribe(navController) }
-      composable(BottomNavigationItem.Me.route) { Me(navController) }
+      composable(
+        route = BottomNavigationItem.Me.route,
+        enterTransition = { if (showNavigationBar) fadeIn() else EnterTransition.None },
+        exitTransition = { if (showNavigationBar) fadeOut() else ExitTransition.None }
+      ) { Me(navController) }
       composable(Navigation.ANIME_DETAIL + "/{animeId}/{animeName}") { backStackEntry ->
         val animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
         val animeName = backStackEntry.arguments?.getString("animeName") ?: ""
@@ -132,20 +136,12 @@ fun MainScreen(activity: ComponentActivity) {
         Player(animeId.toInt(), navController, source, activity)
       }
       composable(
-        enterTransition = { EnterTransition.None },
-        exitTransition = { ExitTransition.None },
-        popExitTransition = { ExitTransition.None },
-        popEnterTransition = { EnterTransition.None },
-        route = Navigation.HISTORY
+        route = Navigation.HISTORY,
       ) {
         HistoryRecord(navController)
       }
       composable(
-        enterTransition = { EnterTransition.None },
-        exitTransition = { ExitTransition.None },
-        popExitTransition = { ExitTransition.None },
-        popEnterTransition = { EnterTransition.None },
-        route = Navigation.ABOUT
+        route = Navigation.ABOUT,
       ) {
         About(navController)
       }

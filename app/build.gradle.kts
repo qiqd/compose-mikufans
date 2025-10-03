@@ -22,7 +22,7 @@ android {
     applicationId = "com.mikufans"
     minSdk = 26
     targetSdk = 36
-    versionCode = 2
+    versionCode = 3
     versionName = "1.0.2"
     androidResources {
       localeFilters += listOf("en", "zh-rCN")
