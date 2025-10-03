@@ -1,3 +1,5 @@
+import com.android.build.api.dsl.Packaging
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.android)
@@ -5,31 +7,59 @@ plugins {
 }
 
 android {
-  namespace = "com.example.mikufans"
+  namespace = "com.mikufans"
   compileSdk = 36
-
-  defaultConfig {
-    applicationId = "com.example.mikufans"
-    minSdk = 26
-    targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
-
-    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+  splits {
+    abi {
+      isEnable = true
+      reset()
+      include("x86", "x86_64", "armeabi-v7a", "arm64-v8a")
+      isUniversalApk = false
+    }
   }
 
+  defaultConfig {
+    applicationId = "com.mikufans"
+    minSdk = 26
+    targetSdk = 36
+    versionCode = 2
+    versionName = "1.0.2"
+    androidResources {
+      localeFilters += listOf("en", "zh-rCN")
+    }
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+  }
+  // 新增：把 kotlin 模块描述符、版本文件、签名冗余全部扔掉
+  // 如果以后用 Room/KAPT，还可以再加 exclude("META-INF/licenses/**")
+  fun Packaging.() {
+    // 新增：把 kotlin 模块描述符、版本文件、签名冗余全部扔掉
+    exclude("META-INF/*.kotlin_module")
+    exclude("META-INF/*.version")
+    exclude("META-INF/versions/**")
+    // 如果以后用 Room/KAPT，还可以再加 exclude("META-INF/licenses/**")
+  }
   buildTypes {
     release {
-      isMinifyEnabled = false
+      isMinifyEnabled = true
+      isShrinkResources = true
+//      signingConfig = signingConfigs.getByName("release")
       proguardFiles(
         getDefaultProguardFile("proguard-android-optimize.txt"),
         "proguard-rules.pro"
       )
+      // 按需保留，如果不用 mips 可删掉
+      fun Packaging.() {
+        jniLibs.keepDebugSymbols.add("*/mips/*.so")          // 按需保留，如果不用 mips 可删掉
+      }
+      ndk {
+        debugSymbolLevel = "none"        // 完全不要符号表
+      }
     }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
+
   }
   kotlinOptions {
     jvmTarget = "11"
@@ -41,6 +71,8 @@ android {
 
 dependencies {
   // Compose Video 视频播放库
+  implementation("androidx.compose.material:material-icons-extended:1.7.8")
+  implementation("androidx.media3:media3-exoplayer-hls:1.1.1")
   implementation("androidx.media3:media3-exoplayer:1.8.0")
   implementation("androidx.media3:media3-exoplayer-dash:1.8.0")
   implementation("androidx.media3:media3-ui:1.8.0")

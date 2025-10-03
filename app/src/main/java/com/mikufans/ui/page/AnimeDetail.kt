@@ -37,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -44,7 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.alibaba.fastjson.JSON
-import com.example.mikufans.R
+import com.mikufans.R
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.GifLoader
 import com.mikufans.xmd.access.GiligiliAccessPoint
@@ -139,6 +140,7 @@ private fun AnimeDetailContent(
         source.episodes?.let { episodes ->
           Card(
             modifier = Modifier
+              .clip(MaterialTheme.shapes.medium)
               .fillMaxWidth()
               .clickable {
                 val json = URLEncoder.encode(JSON.toJSONString(episodes), "UTF-8")

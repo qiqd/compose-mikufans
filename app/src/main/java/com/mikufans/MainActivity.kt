@@ -5,6 +5,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,6 +32,7 @@ import androidx.navigation.compose.rememberNavController
 import com.alibaba.fastjson.JSON
 import com.mikufans.ui.nav.BottomNavigationItem
 import com.mikufans.ui.nav.Navigation
+import com.mikufans.ui.page.About
 import com.mikufans.ui.page.AnimeDetail
 import com.mikufans.ui.page.HistoryRecord
 import com.mikufans.ui.page.Index
@@ -44,7 +50,7 @@ class MainActivity : ComponentActivity() {
     enableEdgeToEdge()
     setContent {
       MikufansTheme {
-        MainScreen()
+        MainScreen(activity = this)
       }
     }
   }
@@ -52,7 +58,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(activity: ComponentActivity) {
   val navController = rememberNavController()
   val navBackStackEntry by navController.currentBackStackEntryAsState()
   val currentDestination = navBackStackEntry?.destination?.route
@@ -67,22 +73,21 @@ fun MainScreen() {
     BottomNavigationItem.Weekly.route -> "周更表"
     BottomNavigationItem.Subscribe.route -> "追番"
     BottomNavigationItem.Me.route -> "我的"
-    else -> "应用标题"
+    else -> ""
   }
-
   // 判断是否显示导航栏（顶部和底部）
   val showNavigationBar =
     screens.stream().anyMatch { it.route == currentDestination } || currentDestination == null
   Scaffold(
     topBar = {
-      if (showNavigationBar) {
+      AnimatedVisibility(visible = showNavigationBar, enter = fadeIn(), exit = fadeOut()) {
         TopAppBar(
           title = { Text(title) },
         )
       }
     },
     bottomBar = {
-      if (showNavigationBar) {
+      AnimatedVisibility(visible = showNavigationBar, enter = fadeIn(), exit = fadeOut()) {
         NavigationBar(
           modifier = Modifier.height(100.dp)
         ) {
@@ -124,10 +129,25 @@ fun MainScreen() {
         var episodes = backStackEntry.arguments?.getString("episodes") ?: ""
         episodes = URLDecoder.decode(episodes, "UTF-8")
         val source = JSON.parseArray(episodes, Episode::class.java)
-        Player(animeId.toInt(), navController, source)
+        Player(animeId.toInt(), navController, source, activity)
       }
-      composable(Navigation.HISTORY) {
+      composable(
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+        popExitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        route = Navigation.HISTORY
+      ) {
         HistoryRecord(navController)
+      }
+      composable(
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+        popExitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        route = Navigation.ABOUT
+      ) {
+        About(navController)
       }
     }
   }

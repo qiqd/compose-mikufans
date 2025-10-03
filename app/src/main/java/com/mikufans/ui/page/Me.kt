@@ -40,6 +40,9 @@ fun Me(navController: NavController) {
     }
     item {
       ListItem(
+        modifier = Modifier.clickable {
+          Navigation.navigateToAbout(navController)
+        },
         headlineContent = { Text("关于") },
         leadingContent = {
           Icon(

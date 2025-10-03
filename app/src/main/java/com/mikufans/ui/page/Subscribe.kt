@@ -14,7 +14,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -42,8 +41,8 @@ fun Subscribe(navController: NavController) {
   }
   Column(
     modifier = Modifier.fillMaxSize(),
-    verticalArrangement = Arrangement.Center,
-    horizontalAlignment = Alignment.CenterHorizontally
+//    verticalArrangement = Arrangement.Center,
+//    horizontalAlignment = Alignment.CenterHorizontally
   ) {
     if (!historyList.any { it.isLove }) {
       Text("暂无追番", textAlign = TextAlign.Center)

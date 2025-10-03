@@ -15,7 +15,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
-import com.example.mikufans.R
+import com.mikufans.R
 import com.mikufans.util.GifLoader
 import com.mikufans.util.RelativeTime
 import com.mikufans.xmd.teto.entity.SubjectSearch
