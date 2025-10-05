@@ -28,10 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
 import com.mikufans.ui.nav.Navigation
-import com.mikufans.xmd.access.AAFunAccessPoint
+import com.mikufans.xmd.access.GiligiliAccessPoint
 import com.mikufans.xmd.miku.entiry.Anime
-import com.mikufans.xmd.teto.entity.DailySchedule
-import com.mikufans.xmd.teto.entity.SubjectSearch
+import com.mikufans.xmd.miku.entiry.Schedule
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -44,12 +43,12 @@ fun Weekly(navController: NavController) {
   val coroutineScope = rememberCoroutineScope()
   var isLoading by rememberSaveable { mutableStateOf(false) }
   val pagerState = rememberPagerState(pageCount = { tabs.size })
-  var weekly by rememberSaveable { mutableStateOf(List<DailySchedule?>(7) { null }) }
+  var weekly by rememberSaveable { mutableStateOf(List<Schedule?>(7) { null }) }
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
   LaunchedEffect(Unit) {
     isLoading = true
     coroutineScope.launch(Dispatchers.IO) {
-      val template = AAFunAccessPoint().weekly()
+      val template = GiligiliAccessPoint().schedule
       weekly = template
     }
     isLoading = false
@@ -70,14 +69,14 @@ fun Weekly(navController: NavController) {
       if (isLoading) {
         CircularProgressIndicator()
       }
-      WeeklyPageContent(weekDay = weekly[page]?.items, navController)
+      WeeklyPageContent(weekDay = weekly[page]?.anime, navController)
 
     }
   }
 }
 
 @Composable
-fun WeeklyPageContent(weekDay: List<DailySchedule.Item>?, navController: NavController) {
+fun WeeklyPageContent(weekDay: List<Anime>?, navController: NavController) {
   val lazyGridState = rememberLazyGridState()
   if (weekDay == null) {
     Box(
@@ -98,17 +97,7 @@ fun WeeklyPageContent(weekDay: List<DailySchedule.Item>?, navController: NavCont
         val item = weekDay[index]
 //                Log.i("weekly->>>", item.toString())
         AnimeCard(
-          anime = SubjectSearch.Subject(
-            id = item.id,
-            name = item.name,
-            nameCn = item.name_cn,
-            images = SubjectSearch.Subject.Images(
-              medium = item.images?.large?.replaceFirst(
-                "http://",
-                "https://"
-              )
-            ),
-          )
+          anime = item
         ) { animeId, animeName ->
           Navigation.navigateToAnimeDetail(navController, animeId, animeName)
         }

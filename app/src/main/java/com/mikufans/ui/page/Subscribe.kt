@@ -23,7 +23,6 @@ import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.LocalStorage
 import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.History
-import com.mikufans.xmd.teto.entity.SubjectSearch
 
 @Composable
 fun Subscribe(navController: NavController) {
@@ -37,6 +36,7 @@ fun Subscribe(navController: NavController) {
   LaunchedEffect(Unit) {
     historyList =
       LocalStorage.getList(content, "view:history", History::class.java)?.toList() ?: emptyList()
+    historyList = historyList.sortedByDescending { it.time }
   }
   Column(
     modifier = Modifier.fillMaxSize(),
@@ -55,15 +55,13 @@ fun Subscribe(navController: NavController) {
       ) {
         items(loveList.size) { index ->
           val isLove = loveList[index].isLove
-          val subject = SubjectSearch.Subject(
-            id = historyList[index].id,
-            images = SubjectSearch.Subject.Images(
-              medium = historyList[index].cover, large = historyList[index].cover
-            ),
-            nameCn = historyList[index].nameCn,
-            name = historyList[index].name,
+          val anime1 = Anime(
+            id = historyList[index].id.toString(),
+            title = historyList[index].nameCn,
           )
-          AnimeCard(subject) { animeId, animeName ->
+          anime1.coverUrl = historyList[index].cover
+
+          AnimeCard(anime1) { animeId, animeName ->
             Navigation.navigateToAnimeDetail(navController, animeId, animeName)
           }
         }

@@ -1,8 +1,8 @@
 package com.mikufans.xmd.teto.service;
 
-import com.mikufans.xmd.teto.entity.DailySchedule;
-import com.mikufans.xmd.teto.entity.EpisodeResult;
-import com.mikufans.xmd.teto.entity.SubjectSearch;
+import com.mikufans.xmd.teto.entity.bangumi.DailySchedule;
+import com.mikufans.xmd.teto.entity.bangumi.EpisodeResult;
+import com.mikufans.xmd.teto.entity.bangumi.SubjectSearch;
 
 import java.util.List;
 

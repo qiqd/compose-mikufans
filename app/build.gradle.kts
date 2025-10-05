@@ -83,6 +83,7 @@ dependencies {
 
   implementation(libs.material3)
   implementation(libs.androidx.foundation)
+  implementation(libs.androidx.runtime.livedata)
   // 添加新依赖项
   compileOnly(libs.lombok)
   implementation(libs.fastjson)

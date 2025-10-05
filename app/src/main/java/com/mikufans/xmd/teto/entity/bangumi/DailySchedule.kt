@@ -1,6 +1,7 @@
-package com.mikufans.xmd.teto.entity
+package com.mikufans.xmd.teto.entity.bangumi
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import java.io.Serializable
 
 /**
  * 每日放送实体类
@@ -15,7 +16,7 @@ data class DailySchedule(
    * 条目列表
    */
   var items: List<Item>? = null
-) : java.io.Serializable {
+) : Serializable {
 
   /**
    * 星期信息实体类
@@ -41,7 +42,7 @@ data class DailySchedule(
      * 星期ID (1-7)
      */
     var id: Int? = null
-  ) : java.io.Serializable
+  ) : Serializable
 
   /**
    * 条目信息实体类
@@ -103,7 +104,7 @@ data class DailySchedule(
      * 图片信息
      */
     var images: Images? = null
-  ) : java.io.Serializable {
+  ) : Serializable {
 
     /**
      * 评分信息实体类
@@ -114,7 +115,7 @@ data class DailySchedule(
        * 平均分
        */
       var score: Double? = null
-    ) : java.io.Serializable
+    ) : Serializable
 
     /**
      * 图片信息实体类
@@ -145,6 +146,6 @@ data class DailySchedule(
        * 网格图链接
        */
       var grid: String? = null
-    ) : java.io.Serializable
+    ) : Serializable
   }
 }

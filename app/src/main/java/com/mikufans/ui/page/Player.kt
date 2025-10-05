@@ -1,12 +1,9 @@
 package com.mikufans.ui.page
 
-import android.content.pm.ActivityInfo
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +27,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -58,29 +56,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.media3.common.MediaItem
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.mikufans.R
-import com.mikufans.ui.component.SimplePlayer
+import com.mikufans.ui.component.CapPlayer
 import com.mikufans.util.GifLoader
 import com.mikufans.util.LocalStorage
-import com.mikufans.util.Orientation
-import com.mikufans.view.PlayerViewModel
 import com.mikufans.xmd.access.GiligiliAccessPoint
 import com.mikufans.xmd.miku.entiry.Episode
 import com.mikufans.xmd.miku.entiry.History
 import com.mikufans.xmd.miku.entiry.PlayInfo
-import com.mikufans.xmd.teto.entity.SubjectSearch
+import com.mikufans.xmd.teto.entity.bangumi.SubjectSearch
 import com.mikufans.xmd.teto.service.impl.RedDrillBit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-private var currentVideoUrl = ""
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,13 +82,12 @@ fun Player(
   activity: ComponentActivity
 ) {
   val content = LocalContext.current
-  val vm: PlayerViewModel = viewModel()
-  vm.initPlayer(content)
-  val exoPlayer = vm.exoPlayer!!   // ① 保证非空
   val tabs = arrayOf("简介", "剧集")
   var isLove by rememberSaveable { mutableStateOf(false) }
   var historyList by rememberSaveable { mutableStateOf<List<History>>(emptyList()) }/* 播放状态持久化 */
   var currentPosition by rememberSaveable { mutableLongStateOf(0L) }
+  var historyPosition by rememberSaveable { mutableLongStateOf(0L) }
+
   var wasPlaying by rememberSaveable { mutableStateOf(true) }
 
   var currentPlayingEpisodeIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -110,43 +100,8 @@ fun Player(
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
   val coroutineScope = rememberCoroutineScope()
   var isFullscreen by rememberSaveable { mutableStateOf(false) }
-  BackHandler(enabled = isLandscape()) {
-    // 全屏时先退出全屏，不 pop 路由
-    Orientation().forceOrientation(content, false)
-  }/* 横竖屏切换时复用同一 ExoPlayer */
-//  val exoPlayer = remember {
-//    globalPlayer ?: ExoPlayer.Builder(content).build().also { globalPlayer = it }
-//  }
+  /* 横竖屏切换时复用同一 ExoPlayer */
 
-  /* 首次 / 切集时加载视频 */
-  LaunchedEffect(playInfo.currentEpisodeUrl) {
-    if (currentVideoUrl.isNotEmpty() && playInfo.currentEpisodeUrl == currentVideoUrl) return@LaunchedEffect
-    try {
-      playInfo.currentEpisodeUrl?.let { url ->
-        exoPlayer.setMediaItem(MediaItem.fromUri(url))
-        exoPlayer.prepare()
-        exoPlayer.playWhenReady = true
-        exoPlayer.seekTo(currentPosition.coerceAtLeast(0L))
-        currentVideoUrl = url
-      }
-    } catch (e: Exception) {
-      Log.e("Player", "视频加载失败", e)
-      Toast.makeText(content, "视频加载失败", Toast.LENGTH_SHORT).show()
-    }
-  }/* 定时保存进度与播放状态 */
-  LaunchedEffect(exoPlayer) {
-    while (true) {
-      kotlinx.coroutines.delay(1000)
-      currentPosition = exoPlayer.currentPosition
-    }
-  }
-
-  LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
-    exoPlayer.pause()
-  }
-  LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-    exoPlayer.play()
-  }
 
   /* 历史记录保存 */
   DisposableEffect(Unit) {
@@ -167,6 +122,7 @@ fun Player(
       val idx = list.indexOfFirst { it.id == animeId }
       if (idx >= 0) list[idx] = history else list.add(history)
       LocalStorage.setList(content, "view:history", list)
+//      PlayerViewModel
     }
   }
 
@@ -177,41 +133,44 @@ fun Player(
       LocalStorage.getList(content, "view:history", History::class.java)?.toMutableList()
         ?: mutableListOf()
     val idx = historyList.indexOfFirst { it.id == animeId }
-    if (idx >= 0) {
-      currentPlayingEpisodeId = historyList[idx].episodeId
-      currentPlayingEpisodeIndex = historyList[idx].episodeIndex ?: 0
-      playInfo.currentEpisodeUrl = historyList[idx].videoUrl
-      currentPosition = historyList[idx].position ?: 0L
-      isLove = historyList[idx].isLove
-    }
-    coroutineScope.launch(Dispatchers.IO) {
-      try {
-        subject = RedDrillBit().fetchSubject(animeId)
-        playInfo.currentEpisodeUrl ?: let {
-          playInfo = GiligiliAccessPoint().getVideoUrl(currentPlayingEpisodeId)
+    try {
+      coroutineScope.launch(Dispatchers.IO) { subject = RedDrillBit().fetchSubject(animeId) }
+      if (idx >= 0) {
+        val tempPlayInfo = PlayInfo()
+        currentPlayingEpisodeId = historyList[idx].episodeId
+        currentPlayingEpisodeIndex = historyList[idx].episodeIndex ?: 0
+        tempPlayInfo.currentEpisodeUrl = historyList[idx].videoUrl
+        currentPosition = historyList[idx].position ?: 0L
+        playInfo = tempPlayInfo
+        isLove = historyList[idx].isLove
+      } else {
+        coroutineScope.launch(Dispatchers.IO) {
+          playInfo.currentEpisodeUrl ?: let {
+            playInfo = GiligiliAccessPoint().getVideoUrl(currentPlayingEpisodeId)
+          }
         }
-
-      } catch (e: Exception) {
-        Log.e("player.error", e.toString())
-        launch(Dispatchers.Main) {
-          Toast.makeText(content, "加载数据失败", Toast.LENGTH_SHORT).show()
-        }
-      } finally {
-        isLoading = false
       }
+    } catch (e: Exception) {
+      Log.e("player.error", e.toString())
+      launch(Dispatchers.Main) {
+        Toast.makeText(content, "加载数据失败", Toast.LENGTH_SHORT).show()
+      }
+    } finally {
+      isLoading = false
     }
   }
-
   /* UI 开始 */
   Scaffold(topBar = {
     if (!isLandscape()) {
       TopAppBar(
         title = { Text(subject?.nameCn ?: subject?.name ?: "", textAlign = TextAlign.Center) },
         navigationIcon = {
-          Icon(
-            Icons.Outlined.ArrowBackIosNew,
-            contentDescription = "back",
-            modifier = Modifier.clickable { navController?.popBackStack() })
+          IconButton(onClick = { navController?.popBackStack() }) {
+            Icon(
+              Icons.Outlined.ArrowBackIosNew,
+              contentDescription = "back",
+            )
+          }
         })
     }
   }, content = { innerPadding ->
@@ -227,20 +186,15 @@ fun Player(
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
           }
         } else {
-          SimplePlayer(
-            exoPlayer,
-            playInfo,
-            isFullScreen = isFullscreen,
+          CapPlayer(
+            videoUrl = playInfo.currentEpisodeUrl!!,
+            position = currentPosition,
+            activity = activity,
             modifier = if (isLandscape()) Modifier.padding(horizontal = 50.dp) else Modifier.fillMaxSize(),
-//            onCurrentPosition = { currentPosition = it },
-            onFullScreenButtonClick = {
-              isFullscreen = !isFullscreen
-              activity.requestedOrientation = if (isFullscreen) {
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-              } else {
-                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-              }
-            })
+            onProcessChange = {
+              currentPosition = it
+            },
+          )
         }
       }
 
@@ -268,7 +222,6 @@ fun Player(
             currentPlayingEpisodeId = newId
             coroutineScope.launch(Dispatchers.IO) {
               playInfo = GiligiliAccessPoint().getVideoUrl(currentPlayingEpisodeId)
-              currentPosition = 0L
               isLoading = false
             }
             currentPosition = 0L

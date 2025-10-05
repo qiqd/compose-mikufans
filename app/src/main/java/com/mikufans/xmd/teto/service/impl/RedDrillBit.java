@@ -1,10 +1,10 @@
 package com.mikufans.xmd.teto.service.impl;
 
 import com.alibaba.fastjson.JSON;
-import com.mikufans.xmd.teto.entity.DailySchedule;
-import com.mikufans.xmd.teto.entity.EpisodeResult;
 import com.mikufans.xmd.teto.entity.RequestType;
-import com.mikufans.xmd.teto.entity.SubjectSearch;
+import com.mikufans.xmd.teto.entity.bangumi.DailySchedule;
+import com.mikufans.xmd.teto.entity.bangumi.EpisodeResult;
+import com.mikufans.xmd.teto.entity.bangumi.SubjectSearch;
 import com.mikufans.xmd.teto.service.DiscoveryService;
 import com.mikufans.xmd.util.HttpUtil;
 import com.mikufans.xmd.util.ValidateUtil;

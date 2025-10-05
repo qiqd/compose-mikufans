@@ -22,8 +22,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -34,12 +36,14 @@ import com.mikufans.ui.nav.BottomNavigationItem
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.ui.page.About
 import com.mikufans.ui.page.AnimeDetail
+import com.mikufans.ui.page.FullSearch
 import com.mikufans.ui.page.HistoryRecord
 import com.mikufans.ui.page.Index
 import com.mikufans.ui.page.Me
 import com.mikufans.ui.page.Player
 import com.mikufans.ui.page.Subscribe
 import com.mikufans.ui.theme.MikufansTheme
+import com.mikufans.view.NetworkViewModel
 import com.mikufans.xmd.miku.entiry.Episode
 import java.net.URLDecoder
 
@@ -76,6 +80,12 @@ fun MainScreen(activity: ComponentActivity) {
     else -> ""
   }
   val showNavigationBar = screens.any { it.route == currentDestination }
+  val minePageItem = arrayOf(
+    Navigation.HISTORY,
+    Navigation.ABOUT
+  )
+  val networkViewModel = viewModel<NetworkViewModel>()
+  val websiteDelays by networkViewModel.websiteDelays.observeAsState(emptyList())
   Scaffold(
     topBar = {
       AnimatedVisibility(visible = showNavigationBar, enter = fadeIn(), exit = fadeOut()) {
@@ -108,14 +118,14 @@ fun MainScreen(activity: ComponentActivity) {
     },
   ) { innerPadding ->
     NavHost(
-      enterTransition = { if (showNavigationBar) fadeIn() else EnterTransition.None },
-      exitTransition = { if (showNavigationBar) fadeOut() else ExitTransition.None },
+      enterTransition = { if (currentDestination !in minePageItem) fadeIn() else EnterTransition.None },
+      exitTransition = { if (currentDestination !in minePageItem) fadeOut() else ExitTransition.None },
       navController = navController,
       startDestination = BottomNavigationItem.Index.route,
       modifier = Modifier.padding(if (showNavigationBar) innerPadding else PaddingValues(0.dp))
 
     ) {
-      composable(BottomNavigationItem.Index.route) { Index(navController) }
+      composable(BottomNavigationItem.Index.route) { Index(navController, websiteDelays) }
       composable(BottomNavigationItem.Weekly.route) { Weekly(navController) }
       composable(BottomNavigationItem.Subscribe.route) { Subscribe(navController) }
       composable(
@@ -124,27 +134,26 @@ fun MainScreen(activity: ComponentActivity) {
         exitTransition = { if (showNavigationBar) fadeOut() else ExitTransition.None }
       ) { Me(navController) }
       composable(Navigation.ANIME_DETAIL + "/{animeId}/{animeName}") { backStackEntry ->
-        val animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
+        var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
+        animeId = URLDecoder.decode(animeId, "UTF-8")
         val animeName = backStackEntry.arguments?.getString("animeName") ?: ""
-        AnimeDetail(animeId.toInt(), animeName, navController)
+        AnimeDetail(animeId, animeName, navController)
       }
       composable(Navigation.ANIME_PLAYER + "/{animeId}/{episodes}") { backStackEntry ->
-        val animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
+        var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
+        animeId = URLDecoder.decode(animeId, "UTF-8")
         var episodes = backStackEntry.arguments?.getString("episodes") ?: ""
         episodes = URLDecoder.decode(episodes, "UTF-8")
         val source = JSON.parseArray(episodes, Episode::class.java)
         Player(animeId.toInt(), navController, source, activity)
       }
-      composable(
-        route = Navigation.HISTORY,
-      ) {
-        HistoryRecord(navController)
-      }
-      composable(
-        route = Navigation.ABOUT,
-      ) {
-        About(navController)
+      composable(route = Navigation.HISTORY) { HistoryRecord(navController) }
+      composable(route = Navigation.ABOUT) { About(navController) }
+      composable(route = Navigation.FULL_SEARCH + "/{keyword}") { backStackEntry ->
+        val keyword = backStackEntry.arguments?.getString("keyword") ?: ""
+        FullSearch(keyword, navController)
       }
     }
   }
 }
+

@@ -10,10 +10,18 @@ class PlayerViewModel : ViewModel() {
   fun initPlayer(context: android.content.Context) {
     if (exoPlayer == null) {
       exoPlayer = ExoPlayer.Builder(context).build()
+
     }
   }
 
   override fun onCleared() {
+    exoPlayer?.release()
+    exoPlayer = null
+  }
+
+  // 添加重置方法
+  fun reset() {
+    exoPlayer?.stop()
     exoPlayer?.release()
     exoPlayer = null
   }

@@ -50,15 +50,16 @@ import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.GifLoader
 import com.mikufans.xmd.access.GiligiliAccessPoint
 import com.mikufans.xmd.miku.entiry.AnimeDetail
-import com.mikufans.xmd.teto.entity.SubjectSearch
+import com.mikufans.xmd.teto.entity.bangumi.SubjectSearch
 import com.mikufans.xmd.teto.service.impl.RedDrillBit
+import com.mikufans.xmd.util.StringMatchUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AnimeDetail(animeId: Int, animeName: String, navController: NavController) {
+fun AnimeDetail(animeId: String, animeName: String, navController: NavController) {
   val context = LocalContext.current
   var subject by rememberSaveable { mutableStateOf<SubjectSearch.Subject?>(null) }
   var animeDetail by rememberSaveable { mutableStateOf<AnimeDetail?>(null) }
@@ -71,9 +72,16 @@ fun AnimeDetail(animeId: Int, animeName: String, navController: NavController) {
     isLoading = true
     coroutineScope.launch(Dispatchers.IO) {
       try {
-        subject = RedDrillBit().fetchSubject(animeId)
+        val subjectSearch = RedDrillBit().fetchSearchResult(animeName, 1, 10)
+        val nameCnToSubjectMap = subjectSearch.data?.associateBy { it.nameCn }
+        val bestMatch = StringMatchUtil.findBestMatchWithJaroWinkler(
+          nameCnToSubjectMap?.keys?.toList(),
+          animeName
+        )
+        subject = nameCnToSubjectMap?.get(bestMatch)
+//        subject = RedDrillBit().fetchSubject(animeId)
         isLoading = false
-        animeDetail = GiligiliAccessPoint().getAnimeInfo(animeName, animeId)
+        animeDetail = GiligiliAccessPoint().getAnimeInfo(animeName, subject?.id)
         launch(Dispatchers.Main) { isLoading = false }
       } catch (e: Exception) {
         e.printStackTrace()
@@ -105,7 +113,7 @@ fun AnimeDetail(animeId: Int, animeName: String, navController: NavController) {
               .wrapContentSize(Alignment.Center)
           ) { CircularProgressIndicator() }
 
-          subject != null -> AnimeDetailContent(subject!!, animeDetail, navController, animeId)
+          subject != null -> AnimeDetailContent(subject!!, animeDetail, navController)
           else -> Box(
             modifier = Modifier
               .fillMaxSize()
@@ -123,7 +131,6 @@ private fun AnimeDetailContent(
   subject: SubjectSearch.Subject,
   animeDetail: AnimeDetail?,
   navController: NavController,
-  animeId: Int
 ) {
   LazyColumn(
     modifier = Modifier
@@ -144,7 +151,7 @@ private fun AnimeDetailContent(
               .fillMaxWidth()
               .clickable {
                 val json = URLEncoder.encode(JSON.toJSONString(episodes), "UTF-8")
-                Navigation.navigateToAnimePlayer(navController, animeId.toString(), json)
+                Navigation.navigateToAnimePlayer(navController, subject.id.toString(), json)
               }
           ) {
             Column(Modifier.padding(16.dp)) {

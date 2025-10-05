@@ -5,15 +5,15 @@ import com.mikufans.xmd.miku.entiry.AnimeDetail;
 import com.mikufans.xmd.miku.entiry.PlayInfo;
 import com.mikufans.xmd.miku.entiry.Schedule;
 import com.mikufans.xmd.miku.service.impl.Girigirilove;
-import com.mikufans.xmd.teto.entity.DailySchedule;
-import com.mikufans.xmd.teto.entity.SubjectSearch;
+import com.mikufans.xmd.teto.entity.bangumi.DailySchedule;
+import com.mikufans.xmd.teto.entity.bangumi.SubjectSearch;
 import com.mikufans.xmd.teto.service.impl.RedDrillBit;
 import com.mikufans.xmd.util.StringMatchUtil;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-
+@Deprecated
 public class GiligiliAccessPoint {
     private Integer subjectId = -1;
     private final Girigirilove girigirilove = new Girigirilove();

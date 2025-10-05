@@ -1,4 +1,6 @@
-package com.mikufans.xmd.teto.entity
+package com.mikufans.xmd.teto.entity.bangumi
+
+import java.io.Serializable
 
 /**
  * 剧集搜索结果实体类
@@ -23,7 +25,7 @@ data class EpisodeResult(
    * 偏移量
    */
   var offset: Int? = null
-) : java.io.Serializable {
+) : Serializable {
 
   /**
    * 剧集信息实体类
@@ -93,5 +95,5 @@ data class EpisodeResult(
      * 服务器解析的时长，单位秒
      */
     var duration_seconds: Int? = null
-  ) : java.io.Serializable
+  ) : Serializable
 }

@@ -29,8 +29,8 @@ import com.mikufans.ui.component.AnimeCard
 import com.mikufans.ui.component.EmptyCompose
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.LocalStorage
+import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.History
-import com.mikufans.xmd.teto.entity.SubjectSearch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +42,7 @@ fun HistoryRecord(navController: NavController) {
     historyList =
       LocalStorage.getList(context, "view:history", History::class.java)?.toMutableList()
         ?: mutableListOf()
+    historyList = historyList.sortedByDescending { it.time }
   }
   Scaffold(
     topBar = {
@@ -72,16 +73,13 @@ fun HistoryRecord(navController: NavController) {
           horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
           items(historyList.size, key = { it }) { index ->
-            val subject = SubjectSearch.Subject(
-              id = historyList[index].id,
-              images = SubjectSearch.Subject.Images(
-                medium = historyList[index].cover, large = historyList[index].cover
-              ),
-              nameCn = historyList[index].nameCn,
-              name = historyList[index].name,
+            val anime1 = Anime(
+              id = historyList[index].id.toString(),
+              title = historyList[index].nameCn,
             )
+            anime1.coverUrl = historyList[index].cover
             AnimeCard(
-              subject,
+              anime1,
               isSimple = false,
               episodeIndex = historyList[index].episodeIndex ?: 0,
               dateTime = historyList[index].time ?: System.currentTimeMillis()

@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -33,23 +34,23 @@ import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.xmd.access.AAFunAccessPoint
-import com.mikufans.xmd.teto.entity.SubjectSearch
+import com.mikufans.xmd.miku.entiry.Anime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Index(navController: NavController) {
+fun Index(navController: NavController, websiteDelays: List<Any>) {
   var keyword by rememberSaveable { mutableStateOf("") }
   var searchResult by rememberSaveable {
-    mutableStateOf<List<SubjectSearch.Subject>>(emptyList())
+    mutableStateOf<List<Anime>>(emptyList())
   }
   var isLoading by rememberSaveable { mutableStateOf(false) }
   val focusManager = LocalFocusManager.current
   val coroutineScope = rememberCoroutineScope()
-
-  Column(modifier = Modifier.padding(8.dp)) {
+//  val source by rememberSaveable { mutableStateOf(websiteDelays[0] as WebsiteDelay) }
+  Column(modifier = Modifier.padding(horizontal = 8.dp)) {
     TextField(
       modifier = Modifier
         .fillMaxWidth()
@@ -58,14 +59,16 @@ fun Index(navController: NavController) {
       onValueChange = { keyword = it },
       keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
       placeholder = { Text("请输入关键字") },
+      maxLines = 1,
       keyboardActions = KeyboardActions(
         onSearch = {
           Log.i("Index-Search", keyword)
           coroutineScope.launch(Dispatchers.IO) {
             try {
               isLoading = true
-              val search = AAFunAccessPoint().search(keyword, 1, 20)
-              val result = search.data ?: emptyList()
+              val search = AAFunAccessPoint().getSearch(keyword, 1, 20)
+//              val search = source.search(keyword, 1, 20)
+              val result = search ?: emptyList()
               withContext(Dispatchers.Main) {
                 searchResult = result
 //                Log.i("search", search.toString())
@@ -85,7 +88,16 @@ fun Index(navController: NavController) {
           focusManager.clearFocus()
         }),
     )
-
+    Row(horizontalArrangement = Arrangement.End) {
+//      Text(
+//        "找不到相关结果？点击这里",
+//        fontSize = MaterialTheme.typography.bodySmall.fontSize,
+//        modifier = Modifier
+//          .clickable {
+//            Navigation.navigateToFullSearch(navController, keyword)
+//          }
+//      )
+    }
     // 添加加载指示器
     if (isLoading) {
       Box(

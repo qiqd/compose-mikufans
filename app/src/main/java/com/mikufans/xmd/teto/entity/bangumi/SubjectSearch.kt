@@ -1,4 +1,4 @@
-package com.mikufans.xmd.teto.entity
+package com.mikufans.xmd.teto.entity.bangumi
 
 import java.io.Serializable
 
