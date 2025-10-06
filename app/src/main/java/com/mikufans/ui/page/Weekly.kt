@@ -4,9 +4,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,28 +28,32 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
 import com.mikufans.ui.nav.Navigation
-import com.mikufans.xmd.access.GiligiliAccessPoint
 import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.Schedule
+import com.mikufans.xmd.teto.service.impl.RedDrillBit
+import com.mikufans.xmd.util.SourceUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Composable
 fun Weekly(navController: NavController) {
-  val anime = Anime()
-  anime.coverUrl = "https://img.pan.kg/images/363957_pgptl.webp"
-  anime.title = "夏日口袋"
   val tabs = arrayOf("一", "二", "三", "四", "五", "六", "日")
   val coroutineScope = rememberCoroutineScope()
   var isLoading by rememberSaveable { mutableStateOf(false) }
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   var weekly by rememberSaveable { mutableStateOf(List<Schedule?>(7) { null }) }
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
+  val sources = rememberSaveable { SourceUtil.getSourceWithDelay() }
   LaunchedEffect(Unit) {
+//    if (weekly.isNotEmpty()) return@LaunchedEffect
     isLoading = true
     coroutineScope.launch(Dispatchers.IO) {
-      val template = GiligiliAccessPoint().schedule
-      weekly = template
+//      val template = GiligiliAccessPoint().schedule
+//      weekly = sources[0].service.weeklySchedule
+//      weekly = template
+
+      val fetchWeeklyUpdate = RedDrillBit().fetchWeeklyUpdate()
+      weekly = fetchWeeklyUpdate
     }
     isLoading = false
   }
@@ -77,7 +81,7 @@ fun Weekly(navController: NavController) {
 
 @Composable
 fun WeeklyPageContent(weekDay: List<Anime>?, navController: NavController) {
-  val lazyGridState = rememberLazyGridState()
+  val lazyGridState = rememberLazyStaggeredGridState()
   if (weekDay == null) {
     Box(
       modifier = Modifier.fillMaxSize(),
@@ -86,26 +90,28 @@ fun WeeklyPageContent(weekDay: List<Anime>?, navController: NavController) {
       CircularProgressIndicator()
     }
   } else {
-    LazyVerticalGrid(
-      columns = GridCells.Fixed(3),
+    LazyVerticalStaggeredGrid(
+      columns = StaggeredGridCells.Fixed(3),
       state = lazyGridState,
-      contentPadding = PaddingValues(vertical = 8.dp),
-      verticalArrangement = Arrangement.spacedBy(8.dp),
-      horizontalArrangement = Arrangement.spacedBy(8.dp)
+      contentPadding = PaddingValues(vertical = 5.dp),
+      verticalItemSpacing = 5.dp,
+      horizontalArrangement = Arrangement.spacedBy(5.dp),
+      modifier = Modifier.fillMaxSize()
     ) {
       items(weekDay.size) { index ->
         val item = weekDay[index]
-//                Log.i("weekly->>>", item.toString())
         AnimeCard(
           anime = item
         ) { animeId, animeName ->
-          Navigation.navigateToAnimeDetail(navController, animeId, animeName)
+          Navigation.navigateToAnimeDetail(
+            navController = navController,
+            animeSubId = animeId,
+            animeName = animeName,
+          )
         }
-
       }
-
     }
-  }
 
+  }
 }
 

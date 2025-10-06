@@ -22,10 +22,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -43,12 +41,18 @@ import com.mikufans.ui.page.Me
 import com.mikufans.ui.page.Player
 import com.mikufans.ui.page.Subscribe
 import com.mikufans.ui.theme.MikufansTheme
-import com.mikufans.view.NetworkViewModel
 import com.mikufans.xmd.miku.entiry.Episode
+import com.mikufans.xmd.util.SourceUtil
 import java.net.URLDecoder
 
 
 class MainActivity : ComponentActivity() {
+  init {
+    Thread {
+      SourceUtil.initSources()
+    }.start()
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
@@ -84,8 +88,6 @@ fun MainScreen(activity: ComponentActivity) {
     Navigation.HISTORY,
     Navigation.ABOUT
   )
-  val networkViewModel = viewModel<NetworkViewModel>()
-  val websiteDelays by networkViewModel.websiteDelays.observeAsState(emptyList())
   Scaffold(
     topBar = {
       AnimatedVisibility(visible = showNavigationBar, enter = fadeIn(), exit = fadeOut()) {
@@ -125,7 +127,7 @@ fun MainScreen(activity: ComponentActivity) {
       modifier = Modifier.padding(if (showNavigationBar) innerPadding else PaddingValues(0.dp))
 
     ) {
-      composable(BottomNavigationItem.Index.route) { Index(navController, websiteDelays) }
+      composable(BottomNavigationItem.Index.route) { Index(navController) }
       composable(BottomNavigationItem.Weekly.route) { Weekly(navController) }
       composable(BottomNavigationItem.Subscribe.route) { Subscribe(navController) }
       composable(
@@ -133,19 +135,22 @@ fun MainScreen(activity: ComponentActivity) {
         enterTransition = { if (showNavigationBar) fadeIn() else EnterTransition.None },
         exitTransition = { if (showNavigationBar) fadeOut() else ExitTransition.None }
       ) { Me(navController) }
-      composable(Navigation.ANIME_DETAIL + "/{animeId}/{animeName}") { backStackEntry ->
+      composable(Navigation.ANIME_DETAIL + "/{animeId}/{animeSubId}/{animeName}") { backStackEntry ->
         var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
         animeId = URLDecoder.decode(animeId, "UTF-8")
         val animeName = backStackEntry.arguments?.getString("animeName") ?: ""
-        AnimeDetail(animeId, animeName, navController)
+        val animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
+        AnimeDetail(animeId, animeSubId.toInt(), animeName, navController)
       }
-      composable(Navigation.ANIME_PLAYER + "/{animeId}/{episodes}") { backStackEntry ->
+      composable(Navigation.ANIME_PLAYER + "/{animeId}/{animeSubId}/{episodes}") { backStackEntry ->
         var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
         animeId = URLDecoder.decode(animeId, "UTF-8")
         var episodes = backStackEntry.arguments?.getString("episodes") ?: ""
+        val animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
         episodes = URLDecoder.decode(episodes, "UTF-8")
+
         val source = JSON.parseArray(episodes, Episode::class.java)
-        Player(animeId.toInt(), navController, source, activity)
+        Player(animeId, animeSubId, navController, source, activity)
       }
       composable(route = Navigation.HISTORY) { HistoryRecord(navController) }
       composable(route = Navigation.ABOUT) { About(navController) }

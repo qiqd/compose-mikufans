@@ -75,7 +75,7 @@ fun HistoryRecord(navController: NavController) {
           items(historyList.size, key = { it }) { index ->
             val anime1 = Anime(
               id = historyList[index].id.toString(),
-              title = historyList[index].nameCn,
+              name = historyList[index].nameCn,
             )
             anime1.coverUrl = historyList[index].cover
             AnimeCard(
@@ -84,7 +84,12 @@ fun HistoryRecord(navController: NavController) {
               episodeIndex = historyList[index].episodeIndex ?: 0,
               dateTime = historyList[index].time ?: System.currentTimeMillis()
             ) { animeId, animeName ->
-              Navigation.navigateToAnimeDetail(navController, animeId, animeName)
+              Navigation.navigateToAnimeDetail(
+                navController,
+                animeId,
+                historyList[index].subId!!,
+                animeName
+              )
             }
           }
         }

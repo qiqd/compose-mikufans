@@ -1,3 +1,5 @@
 package com.mikufans.xmd.miku.entiry
 
-data class WebsiteDelay(val domain: String, val delay: Long)
+import com.mikufans.xmd.miku.service.HtmlParser
+
+data class WebsiteDelay(val service: HtmlParser, val delay: Int)

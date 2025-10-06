@@ -3,7 +3,8 @@ package com.mikufans.xmd.miku.entiry
 import java.io.Serializable
 
 data class History(
-  var id: Int? = null,
+  var id: String? = null,
+  var subId: String? = null,
   var isLove: Boolean = false,
   var videoUrl: String? = null,
   var name: String? = null,

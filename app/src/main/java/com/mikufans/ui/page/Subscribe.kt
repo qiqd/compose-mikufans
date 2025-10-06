@@ -28,7 +28,7 @@ import com.mikufans.xmd.miku.entiry.History
 fun Subscribe(navController: NavController) {
   val anime = Anime()
   anime.coverUrl = "https://img.pan.kg/images/363957_pgptl.webp"
-  anime.title = "夏日口袋"
+  anime.name = "夏日口袋"
   val content = LocalContext.current
   val lazyGridState = rememberLazyGridState()
   var historyList by remember { mutableStateOf<List<History>>(emptyList()) }
@@ -57,12 +57,16 @@ fun Subscribe(navController: NavController) {
           val isLove = loveList[index].isLove
           val anime1 = Anime(
             id = historyList[index].id.toString(),
-            title = historyList[index].nameCn,
+            name = historyList[index].nameCn,
           )
           anime1.coverUrl = historyList[index].cover
 
           AnimeCard(anime1) { animeId, animeName ->
-            Navigation.navigateToAnimeDetail(navController, animeId, animeName)
+            Navigation.navigateToAnimeDetail(
+              navController = navController,
+              animeSubId = animeId,
+              animeName = animeName
+            )
           }
         }
       }

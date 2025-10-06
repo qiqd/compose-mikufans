@@ -48,10 +48,10 @@ import com.alibaba.fastjson.JSON
 import com.mikufans.R
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.GifLoader
-import com.mikufans.xmd.access.GiligiliAccessPoint
+import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.AnimeDetail
-import com.mikufans.xmd.teto.entity.bangumi.SubjectSearch
 import com.mikufans.xmd.teto.service.impl.RedDrillBit
+import com.mikufans.xmd.util.SourceUtil
 import com.mikufans.xmd.util.StringMatchUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -59,12 +59,19 @@ import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AnimeDetail(animeId: String, animeName: String, navController: NavController) {
+fun AnimeDetail(
+  animeId: String? = null,
+  animeSubId: Int,
+  animeName: String,
+  navController: NavController
+) {
   val context = LocalContext.current
-  var subject by rememberSaveable { mutableStateOf<SubjectSearch.Subject?>(null) }
+  var subject by rememberSaveable { mutableStateOf<Anime?>(null) }
   var animeDetail by rememberSaveable { mutableStateOf<AnimeDetail?>(null) }
   val coroutineScope = rememberCoroutineScope()
   var isLoading by remember { mutableStateOf(false) }
+  val sources = rememberSaveable { SourceUtil.getSourceWithDelay() }
+  var id by rememberSaveable { mutableStateOf(animeId) }
   LaunchedEffect(Unit) {
     if (subject != null || animeDetail != null) {
       return@LaunchedEffect
@@ -72,16 +79,19 @@ fun AnimeDetail(animeId: String, animeName: String, navController: NavController
     isLoading = true
     coroutineScope.launch(Dispatchers.IO) {
       try {
-        val subjectSearch = RedDrillBit().fetchSearchResult(animeName, 1, 10)
-        val nameCnToSubjectMap = subjectSearch.data?.associateBy { it.nameCn }
-        val bestMatch = StringMatchUtil.findBestMatchWithJaroWinkler(
-          nameCnToSubjectMap?.keys?.toList(),
-          animeName
-        )
-        subject = nameCnToSubjectMap?.get(bestMatch)
+        val subjectSearch = RedDrillBit().fetchSubject(animeSubId)
+        subject = subjectSearch
 //        subject = RedDrillBit().fetchSubject(animeId)
         isLoading = false
-        animeDetail = GiligiliAccessPoint().getAnimeInfo(animeName, subject?.id)
+//        animeDetail = GiligiliAccessPoint().getAnimeInfo(animeName, subject?.id)
+        if (id == null) {
+          val searchResult = sources[0].service.getSearchResult(animeName, 1, 10)
+          val nameCnMap = searchResult.associateBy { it.nameCn }
+          val bestMatch =
+            StringMatchUtil.findBestMatchWithJaroWinkler(nameCnMap.keys.toList(), animeName)
+          id = nameCnMap[bestMatch]?.id
+        }
+        animeDetail = sources[0].service.getAnimeDetail(id)
         launch(Dispatchers.Main) { isLoading = false }
       } catch (e: Exception) {
         e.printStackTrace()
@@ -113,7 +123,13 @@ fun AnimeDetail(animeId: String, animeName: String, navController: NavController
               .wrapContentSize(Alignment.Center)
           ) { CircularProgressIndicator() }
 
-          subject != null -> AnimeDetailContent(subject!!, animeDetail, navController)
+          subject != null -> AnimeDetailContent(
+            id!!,
+            subject!!,
+            animeDetail,
+            navController
+          )
+
           else -> Box(
             modifier = Modifier
               .fillMaxSize()
@@ -128,7 +144,8 @@ fun AnimeDetail(animeId: String, animeName: String, navController: NavController
 /* 3. 头部+简介改用 Subject */
 @Composable
 private fun AnimeDetailContent(
-  subject: SubjectSearch.Subject,
+  animeId: String,
+  subject: Anime,
   animeDetail: AnimeDetail?,
   navController: NavController,
 ) {
@@ -151,7 +168,12 @@ private fun AnimeDetailContent(
               .fillMaxWidth()
               .clickable {
                 val json = URLEncoder.encode(JSON.toJSONString(episodes), "UTF-8")
-                Navigation.navigateToAnimePlayer(navController, subject.id.toString(), json)
+                Navigation.navigateToAnimePlayer(
+                  navController,
+                  animeId,
+                  subject.id.toString(),
+                  json
+                )
               }
           ) {
             Column(Modifier.padding(16.dp)) {
@@ -172,7 +194,7 @@ private fun AnimeDetailContent(
         Column(Modifier.padding(16.dp)) {
           Text("简介", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
           Text(
-            text = subject.summary ?: "暂无简介",
+            text = subject.description ?: "暂无简介",
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 8.dp)
           )
@@ -186,14 +208,14 @@ private fun AnimeDetailContent(
 
 /* 5. 头部信息全部来自 Subject */
 @Composable
-private fun AnimeHeader(subject: SubjectSearch.Subject) {
+private fun AnimeHeader(subject: Anime) {
   Row(
     modifier = Modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.spacedBy(16.dp)
   ) {
     AsyncImage(
-      model = subject.images?.large ?: subject.images?.medium,
-      contentDescription = null,
+      model = subject.coverUrl,
+      contentDescription = subject.name,
       contentScale = ContentScale.Crop,
       modifier = Modifier
         .width(150.dp)
@@ -203,20 +225,20 @@ private fun AnimeHeader(subject: SubjectSearch.Subject) {
 
     Column(Modifier.weight(1f)) {
       Text(
-        text = subject.nameCn ?: subject.name ?: "未知标题",
+        text = subject.name ?: "未知标题",
         style = MaterialTheme.typography.titleLarge,
         fontWeight = FontWeight.Bold
       )
 
       Spacer(Modifier.height(8.dp))
 
-      subject.rating?.score?.let {
+      subject.rating?.let {
         Text("评分: $it", style = MaterialTheme.typography.bodyMedium)
       }
 
 
       subject.date?.let {
-        Text("年份: ${it.take(4)}", style = MaterialTheme.typography.bodyMedium)
+        Text("年份: $it", style = MaterialTheme.typography.bodyMedium)
       }
     }
   }

@@ -3,12 +3,15 @@ package com.mikufans.xmd.util;
 
 import com.alibaba.fastjson.JSON;
 import com.mikufans.xmd.miku.entiry.WebsiteDelay;
+import com.mikufans.xmd.miku.service.HtmlParser;
 import com.mikufans.xmd.teto.entity.RequestType;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -18,108 +21,121 @@ import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
+import okhttp3.Response;
 
 
 public class HttpUtil {
-    public static OkHttpClient getClient() {
-        return new OkHttpClient.Builder().connectTimeout(100, TimeUnit.SECONDS).writeTimeout(100, TimeUnit.SECONDS).readTimeout(100, TimeUnit.SECONDS).build();
+  public static OkHttpClient getClient() {
+    return new OkHttpClient.Builder().connectTimeout(100, TimeUnit.SECONDS).writeTimeout(100, TimeUnit.SECONDS).readTimeout(100, TimeUnit.SECONDS).build();
+  }
+
+  private static void configHeader(Request.Builder builder) {
+    builder.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36").addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8").addHeader("Accept-Language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7");
+  }
+
+  public static Request getRequest(String url) {
+    Request.Builder builder = new Request.Builder();
+    configHeader(builder);
+    builder.url(url);
+    return builder.build();
+  }
+
+  public static Request getRequest(String url, Map<String, String> headers) {
+    Request.Builder builder = new Request.Builder();
+    headers.forEach(builder::addHeader);
+    configHeader(builder);
+    builder.url(url);
+    return builder.build();
+  }
+
+  public static Request getRequest(String url, RequestType type, Map<String, Object> bodyOrParams) {
+    Request.Builder builder = new Request.Builder();
+    configHeader(builder);
+    builder.url(url);
+    if (Objects.equals(type, RequestType.GET)) {
+      String fullUrl = bodyOrParams.entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue()).collect(Collectors.joining("&"));
+      builder.url(url + "?" + fullUrl);
+    } else if (Objects.equals(type, RequestType.POST)) {
+      builder.url(url).post(RequestBody.create(JSON.toJSONString(bodyOrParams), MediaType.parse("application/json")));
+    }
+    return builder.build();
+  }
+
+  public static Request getRequest(String url, Map<String, Object> body, Map<String, Object> params) {
+    Request.Builder builder = new Request.Builder();
+    configHeader(builder);
+    String fullUrl = params.entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue()).collect(Collectors.joining("&"));
+    builder.url(url + "?" + fullUrl);
+    builder.post(RequestBody.create(JSON.toJSONString(body), MediaType.parse("application/json")));
+    return builder.build();
+  }
+
+  /**
+   * 并发获取各域名的延迟列表
+   *
+   * @param domains 域名列表
+   * @return 包含域名和延迟的Map列表
+   */
+  public static List<WebsiteDelay> getDomainDelaysConcurrent(Map<String, HtmlParser> domains) {
+    if (domains == null || domains.isEmpty()) {
+      return new ArrayList<>();
     }
 
-    private static void configHeader(Request.Builder builder) {
-        builder.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36").addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8").addHeader("Accept-Language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7");
-    }
+    final List<WebsiteDelay> result = new CopyOnWriteArrayList<>();
 
-    public static Request getRequest(String url) {
-        Request.Builder builder = new Request.Builder();
-        configHeader(builder);
-        builder.url(url);
-        return builder.build();
-    }
+    try (ExecutorService executor = Executors.newFixedThreadPool(Math.min(domains.size(), 10))) {
+      List<CompletableFuture<Void>> futures = domains.entrySet().stream()
+              .map(domain -> CompletableFuture.supplyAsync(() -> {
+                try {
+                  String host = domain.getKey();
+                  HtmlParser parser = domain.getValue();
+                  int delay = pingWithDelay(host);
+                  if (delay > 0) {
+                    return new WebsiteDelay(parser, delay);
+                  }
+                  return null;
+                } catch (Exception e) {
+                  return null;
+                }
+              }, executor))
+              .map(future -> future.thenAccept((websiteDelay) -> {
+                if (websiteDelay != null) {
+                  result.add(websiteDelay);
+                }
+              }))
+              .collect(Collectors.toList());
 
-    public static Request getRequest(String url, Map<String, String> headers) {
-        Request.Builder builder = new Request.Builder();
-        headers.forEach(builder::addHeader);
-        configHeader(builder);
-        builder.url(url);
-        return builder.build();
+      // 不调用 join()，让任务异步执行
+      return result;
     }
+  }
 
-    public static Request getRequest(String url, RequestType type, Map<String, Object> bodyOrParams) {
-        Request.Builder builder = new Request.Builder();
-        configHeader(builder);
-        builder.url(url);
-        if (Objects.equals(type, RequestType.GET)) {
-            String fullUrl = bodyOrParams.entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue()).collect(Collectors.joining("&"));
-            builder.url(url + "?" + fullUrl);
-        } else if (Objects.equals(type, RequestType.POST)) {
-            builder.url(url).post(RequestBody.create(JSON.toJSONString(bodyOrParams), MediaType.parse("application/json")));
+  /**
+   * 使用Ping命令获取延迟
+   *
+   * @param host 目标主机
+   * @return 延迟时间（毫秒），如果失败返回-1
+   */
+  public static int pingWithDelay(String host) {
+    try {
+      String url = "https://" + host;
+      Request request = getRequest(url);
+      long startTime = System.currentTimeMillis();
+
+      // 使用 OkHttp 发起 GET 请求，并使用 try-with-resources 自动关闭 Response
+      OkHttpClient client = getClient();
+      try (Response response = client.newCall(request).execute()) {
+        if (response.isSuccessful()) {
+          long endTime = System.currentTimeMillis();
+          return (int) (endTime - startTime);
         }
-        return builder.build();
+      }
+      return -1;
+    } catch (Exception e) {
+      return -1;
     }
-
-    public static Request getRequest(String url, Map<String, Object> body, Map<String, Object> params) {
-        Request.Builder builder = new Request.Builder();
-        configHeader(builder);
-        String fullUrl = params.entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue()).collect(Collectors.joining("&"));
-        builder.url(url + "?" + fullUrl);
-        builder.post(RequestBody.create(JSON.toJSONString(body), MediaType.parse("application/json")));
-        return builder.build();
-    }
-
-    /**
-     * 并发获取各域名的延迟列表
-     *
-     * @param domains 域名列表
-     * @return 包含域名和延迟的Map列表
-     */
-    public static List<WebsiteDelay> getDomainDelaysConcurrent(List<String> domains) {
-        if (domains == null || domains.isEmpty()) {
-            return new java.util.ArrayList<>();
-        }
-
-        // 创建线程池
-        try (ExecutorService executor = Executors.newFixedThreadPool(Math.min(domains.size(), 10))) {
-
-            try {
-                // 并发执行网络探测
-                List<CompletableFuture<WebsiteDelay>> futures = domains.stream().map(domain -> CompletableFuture.supplyAsync(() -> {
-                    try {
-                        long delay = networkProbe(domain);
-                        return new WebsiteDelay(domain, delay);
-                    } catch (Exception e) {
-                        return null;
-                    }
-                }, executor)).collect(Collectors.toList());
-
-                // 等待所有任务完成并收集结果
-                return futures.stream().map(CompletableFuture::join).filter(Objects::nonNull).filter(websiteDelay -> websiteDelay.getDelay() > 0).collect(Collectors.toList());
-            } finally {
-                executor.shutdown();
-            }
-        }
-    }
-
-    /**
-     * 使用OkHttp进行网络探测并返回延迟时间（毫秒）
-     *
-     * @param domain 要探测的域名
-     * @return 延迟时间（毫秒），如果失败返回-1
-     */
-    private static long networkProbe(String domain) {
-        OkHttpClient client = HttpUtil.getClient();
-        Request request = HttpUtil.getRequest("https://" + domain);
-
-        long startTime = System.currentTimeMillis();
-        try (okhttp3.Response response = client.newCall(request).execute()) {
-            if (response.isSuccessful()) {
-                return System.currentTimeMillis() - startTime;
-            } else {
-                return -1;
-            }
-        } catch (Exception e) {
-            return -1;
-        }
-    }
+  }
 
 }
+
 

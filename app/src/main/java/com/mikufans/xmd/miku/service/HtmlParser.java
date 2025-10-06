@@ -29,7 +29,7 @@ public interface HtmlParser {
      * @return AnimeDetail
      * @throws Exception 解析异常
      */
-    AnimeDetail getVideoDetail(String videoId) throws Exception;
+    AnimeDetail getAnimeDetail(String videoId) throws Exception;
 
     /**
      * 解析播放信息

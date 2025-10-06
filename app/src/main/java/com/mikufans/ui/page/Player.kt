@@ -62,12 +62,12 @@ import com.mikufans.R
 import com.mikufans.ui.component.CapPlayer
 import com.mikufans.util.GifLoader
 import com.mikufans.util.LocalStorage
-import com.mikufans.xmd.access.GiligiliAccessPoint
+import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.Episode
 import com.mikufans.xmd.miku.entiry.History
 import com.mikufans.xmd.miku.entiry.PlayInfo
-import com.mikufans.xmd.teto.entity.bangumi.SubjectSearch
 import com.mikufans.xmd.teto.service.impl.RedDrillBit
+import com.mikufans.xmd.util.SourceUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -76,7 +76,8 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Player(
-  animeId: Int,
+  animeId: String,
+  animeSubId: String,
   navController: NavController?,
   episodeList: List<Episode>,
   activity: ComponentActivity
@@ -94,23 +95,22 @@ fun Player(
   var currentPlayingEpisodeId by rememberSaveable { mutableStateOf(episodeList[0].id) }
   var isLoading by rememberSaveable { mutableStateOf(false) }
   var playInfo by rememberSaveable { mutableStateOf(PlayInfo()) }
-  var subject by rememberSaveable { mutableStateOf<SubjectSearch.Subject?>(null) }
+  var subject by rememberSaveable { mutableStateOf<Anime?>(null) }
   val episodes by rememberSaveable { mutableStateOf<List<Episode>?>(episodeList) }
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
   val coroutineScope = rememberCoroutineScope()
   var isFullscreen by rememberSaveable { mutableStateOf(false) }
-  /* 横竖屏切换时复用同一 ExoPlayer */
-
-
+  val sources = rememberSaveable { SourceUtil.getSourceWithDelay() }
   /* 历史记录保存 */
   DisposableEffect(Unit) {
     onDispose {
       val history = History(
         id = animeId,
+        subId = animeSubId,
         name = subject?.name,
         nameCn = subject?.nameCn,
-        cover = subject?.images?.large,
+        cover = subject?.coverUrl,
         episodeId = currentPlayingEpisodeId,
         episodeIndex = currentPlayingEpisodeIndex,
         position = currentPosition - 5000,
@@ -134,7 +134,9 @@ fun Player(
         ?: mutableListOf()
     val idx = historyList.indexOfFirst { it.id == animeId }
     try {
-      coroutineScope.launch(Dispatchers.IO) { subject = RedDrillBit().fetchSubject(animeId) }
+      coroutineScope.launch(Dispatchers.IO) {
+        subject = RedDrillBit().fetchSubject(animeSubId.toInt())
+      }
       if (idx >= 0) {
         val tempPlayInfo = PlayInfo()
         currentPlayingEpisodeId = historyList[idx].episodeId
@@ -146,7 +148,8 @@ fun Player(
       } else {
         coroutineScope.launch(Dispatchers.IO) {
           playInfo.currentEpisodeUrl ?: let {
-            playInfo = GiligiliAccessPoint().getVideoUrl(currentPlayingEpisodeId)
+//            playInfo = GiligiliAccessPoint().getVideoUrl(currentPlayingEpisodeId)
+            playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId)
           }
         }
       }
@@ -221,7 +224,8 @@ fun Player(
             currentPlayingEpisodeIndex = index
             currentPlayingEpisodeId = newId
             coroutineScope.launch(Dispatchers.IO) {
-              playInfo = GiligiliAccessPoint().getVideoUrl(currentPlayingEpisodeId)
+//              playInfo = GiligiliAccessPoint().getVideoUrl(currentPlayingEpisodeId)
+              playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId)
               isLoading = false
             }
             currentPosition = 0L
@@ -240,7 +244,7 @@ fun isLandscape(): Boolean =
 /* ====================== 简介页 ====================== */
 @Composable
 fun AnimeInfoPage(
-  subject: SubjectSearch.Subject?, isLove: Boolean = false, loveHandle: (Boolean) -> Unit
+  subject: Anime?, isLove: Boolean = false, loveHandle: (Boolean) -> Unit
 ) {
   subject?.let { anime ->
     LazyColumn(
@@ -258,7 +262,7 @@ fun AnimeInfoPage(
               .width(120.dp)
               .aspectRatio(2 / 3f)
               .clip(MaterialTheme.shapes.medium),
-            model = anime.images?.large ?: anime.images?.medium,
+            model = anime.coverUrl,
             contentDescription = anime.nameCn ?: anime.name,
             placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current),
             contentScale = ContentScale.Crop
@@ -276,14 +280,14 @@ fun AnimeInfoPage(
                 modifier = Modifier.padding(top = 8.dp)
               )
             }
-            anime.rating?.score?.let {
+            anime.rating?.let {
               Text(
                 text = "评分: $it",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 4.dp)
               )
             }
-            anime.eps?.let {
+            anime.totalEpisodes?.let {
               Text(
                 text = "集数: $it",
                 style = MaterialTheme.typography.bodyMedium,
@@ -309,7 +313,7 @@ fun AnimeInfoPage(
         }
       }
 
-      anime.summary?.let { summary ->
+      anime.description?.let { summary ->
         item {
           Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -343,17 +347,17 @@ fun AnimeInfoPage(
                 modifier = Modifier.padding(top = 8.dp)
               )
             }
-            anime.infobox?.let { infoList ->
-              infoList.forEach { info ->
-                info.key?.let { key ->
-                  Text(
-                    text = "$key: ${info.value ?: "无"}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 4.dp)
-                  )
-                }
-              }
-            }
+//            anime.infobox?.let { infoList ->
+//              infoList.forEach { info ->
+//                info.key?.let { key ->
+//                  Text(
+//                    text = "$key: ${info.value ?: "无"}",
+//                    style = MaterialTheme.typography.bodyMedium,
+//                    modifier = Modifier.padding(top = 4.dp)
+//                  )
+//                }
+//              }
+//            }
           }
         }
       }

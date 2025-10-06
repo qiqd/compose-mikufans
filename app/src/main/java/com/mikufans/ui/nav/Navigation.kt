@@ -9,18 +9,30 @@ object Navigation {
   const val HISTORY = "history"
   const val ABOUT = "about"
   const val FULL_SEARCH = "fullSearch"
-  fun navigateToAnimeDetail(navController: NavController, animeId: String, animeName: String) {
-    val encode = URLEncoder.encode(animeId)
-    navController.navigate("$ANIME_DETAIL/$encode/$animeName") {
+  fun navigateToAnimeDetail(
+    navController: NavController,
+    animeId: String? = null,
+    animeSubId: String,
+    animeName: String
+  ) {
+    val animeId = URLEncoder.encode(animeId, "UTF-8")
+    val animeSubId = URLEncoder.encode(animeSubId, "UTF-8")
+    navController.navigate("$ANIME_DETAIL/$animeId/$animeSubId/$animeName") {
       launchSingleTop = true
       restoreState = true
     }
   }
 
-  fun navigateToAnimePlayer(navController: NavController, animeId: String, episodeId: String) {
-    val encode = URLEncoder.encode(animeId, "UTF-8")
-    val eps = URLEncoder.encode(episodeId)
-    navController.navigate("$ANIME_PLAYER/$encode/$eps") {
+  fun navigateToAnimePlayer(
+    navController: NavController,
+    animeId: String,
+    animeSubId: String,
+    episodeId: String
+  ) {
+    val animeSubId = URLEncoder.encode(animeSubId, "UTF-8")
+    val animeId = URLEncoder.encode(animeSubId, "UTF-8")
+    val eps = URLEncoder.encode(episodeId, "UTF-8")
+    navController.navigate("$ANIME_PLAYER/$animeId/$animeSubId/$eps") {
       launchSingleTop = true
       restoreState = true
     }

@@ -72,7 +72,7 @@ fun ComposePlayer(
   val url by rememberSaveable { mutableStateOf(videoUrl) }
   BackHandler(enabled = isFullscreen) {
     isFullscreen = false
-    activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
   }
 
   SimpleExoPlayer(

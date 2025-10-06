@@ -4,13 +4,14 @@ import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
@@ -33,15 +34,16 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
 import com.mikufans.ui.nav.Navigation
-import com.mikufans.xmd.access.AAFunAccessPoint
 import com.mikufans.xmd.miku.entiry.Anime
+import com.mikufans.xmd.teto.service.impl.RedDrillBit
+import com.mikufans.xmd.util.SourceUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Index(navController: NavController, websiteDelays: List<Any>) {
+fun Index(navController: NavController) {
   var keyword by rememberSaveable { mutableStateOf("") }
   var searchResult by rememberSaveable {
     mutableStateOf<List<Anime>>(emptyList())
@@ -49,7 +51,8 @@ fun Index(navController: NavController, websiteDelays: List<Any>) {
   var isLoading by rememberSaveable { mutableStateOf(false) }
   val focusManager = LocalFocusManager.current
   val coroutineScope = rememberCoroutineScope()
-//  val source by rememberSaveable { mutableStateOf(websiteDelays[0] as WebsiteDelay) }
+  val lazyGridState = rememberLazyStaggeredGridState()
+  val sources = rememberSaveable { SourceUtil.getSourceWithDelay() }
   Column(modifier = Modifier.padding(horizontal = 8.dp)) {
     TextField(
       modifier = Modifier
@@ -66,12 +69,11 @@ fun Index(navController: NavController, websiteDelays: List<Any>) {
           coroutineScope.launch(Dispatchers.IO) {
             try {
               isLoading = true
-              val search = AAFunAccessPoint().getSearch(keyword, 1, 20)
-//              val search = source.search(keyword, 1, 20)
-              val result = search ?: emptyList()
+//              val search = sources[0].service.getSearchResult(keyword, 1, 20)
+              val anime = RedDrillBit().fetchSearchResult(keyword, 1, 10)
+              val result = anime ?: emptyList()
               withContext(Dispatchers.Main) {
                 searchResult = result
-//                Log.i("search", search.toString())
               }
             } catch (e: Exception) {
               // 处理错误
@@ -88,16 +90,6 @@ fun Index(navController: NavController, websiteDelays: List<Any>) {
           focusManager.clearFocus()
         }),
     )
-    Row(horizontalArrangement = Arrangement.End) {
-//      Text(
-//        "找不到相关结果？点击这里",
-//        fontSize = MaterialTheme.typography.bodySmall.fontSize,
-//        modifier = Modifier
-//          .clickable {
-//            Navigation.navigateToFullSearch(navController, keyword)
-//          }
-//      )
-    }
     // 添加加载指示器
     if (isLoading) {
       Box(
@@ -109,15 +101,21 @@ fun Index(navController: NavController, websiteDelays: List<Any>) {
       }
     }
 
-    LazyVerticalGrid(
-      modifier = Modifier.padding(top = 5.dp),
-      columns = GridCells.Fixed(3),
-      horizontalArrangement = Arrangement.spacedBy(8.dp),
-      verticalArrangement = Arrangement.spacedBy(8.dp)
+    LazyVerticalStaggeredGrid(
+      columns = StaggeredGridCells.Fixed(3),
+      state = lazyGridState,
+      contentPadding = PaddingValues(vertical = 5.dp),
+      verticalItemSpacing = 5.dp,
+      horizontalArrangement = Arrangement.spacedBy(5.dp),
+      modifier = Modifier.fillMaxSize()
     ) {
       items(searchResult) {
         AnimeCard(anime = it) { animeId, animeName ->
-          Navigation.navigateToAnimeDetail(navController, animeId, animeName)
+          Navigation.navigateToAnimeDetail(
+            navController = navController,
+            animeSubId = animeId,
+            animeName = animeName,
+          )
         }
       }
     }
