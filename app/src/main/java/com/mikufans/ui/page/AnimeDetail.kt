@@ -60,7 +60,7 @@ import java.net.URLEncoder
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnimeDetail(
-  animeId: String? = null,
+  animeId: String = "",
   animeSubId: Int,
   animeName: String,
   navController: NavController
@@ -81,15 +81,13 @@ fun AnimeDetail(
       try {
         val subjectSearch = RedDrillBit().fetchSubject(animeSubId)
         subject = subjectSearch
-//        subject = RedDrillBit().fetchSubject(animeId)
         isLoading = false
-//        animeDetail = GiligiliAccessPoint().getAnimeInfo(animeName, subject?.id)
-        if (id == null) {
+        if (id.isEmpty()) {
           val searchResult = sources[0].service.getSearchResult(animeName, 1, 10)
           val nameCnMap = searchResult.associateBy { it.nameCn }
           val bestMatch =
             StringMatchUtil.findBestMatchWithJaroWinkler(nameCnMap.keys.toList(), animeName)
-          id = nameCnMap[bestMatch]?.id
+          id = nameCnMap[bestMatch]?.id!!
         }
         animeDetail = sources[0].service.getAnimeDetail(id)
         launch(Dispatchers.Main) { isLoading = false }
@@ -99,6 +97,8 @@ fun AnimeDetail(
           isLoading = false
           Toast.makeText(context, "获取数据失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
+      } finally {
+        isLoading = false
       }
     }
   }
@@ -124,7 +124,7 @@ fun AnimeDetail(
           ) { CircularProgressIndicator() }
 
           subject != null -> AnimeDetailContent(
-            id!!,
+            id,
             subject!!,
             animeDetail,
             navController
@@ -171,7 +171,7 @@ private fun AnimeDetailContent(
                 Navigation.navigateToAnimePlayer(
                   navController,
                   animeId,
-                  subject.id.toString(),
+                  subject.subId.toString(),
                   json
                 )
               }

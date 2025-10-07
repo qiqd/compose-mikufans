@@ -2,11 +2,11 @@ package com.mikufans.ui.page
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.NavigateBefore
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,7 +36,7 @@ import com.mikufans.xmd.miku.entiry.History
 @Composable
 fun HistoryRecord(navController: NavController) {
   val context = LocalContext.current
-  val lazyGridState = rememberLazyGridState()
+  val lazyGridState = rememberLazyListState()
   var historyList by remember { mutableStateOf<List<History>>(emptyList()) }
   LaunchedEffect(Unit) {
     historyList =
@@ -66,16 +66,18 @@ fun HistoryRecord(navController: NavController) {
       if (historyList.isEmpty()) {
         EmptyCompose(text = "暂无历史记录")
       } else {
-        LazyVerticalGrid(
-          columns = GridCells.Fixed(3), state = lazyGridState,
-          modifier = Modifier.padding(8.dp),
-          verticalArrangement = Arrangement.spacedBy(8.dp),
-          horizontalArrangement = Arrangement.spacedBy(8.dp),
+        LazyColumn(
+          state = lazyGridState,
+          contentPadding = PaddingValues(5.dp),
+          verticalArrangement = Arrangement.spacedBy(5.dp),
+          modifier = Modifier.fillMaxSize()
         ) {
           items(historyList.size, key = { it }) { index ->
             val anime1 = Anime(
               id = historyList[index].id.toString(),
-              name = historyList[index].nameCn,
+              subId = historyList[index].subId?.toInt(),
+              name = historyList[index].name,
+              nameCn = historyList[index].nameCn,
             )
             anime1.coverUrl = historyList[index].cover
             AnimeCard(
@@ -83,12 +85,12 @@ fun HistoryRecord(navController: NavController) {
               isSimple = false,
               episodeIndex = historyList[index].episodeIndex ?: 0,
               dateTime = historyList[index].time ?: System.currentTimeMillis()
-            ) { animeId, animeName ->
+            ) { animeSubId, animeName ->
               Navigation.navigateToAnimeDetail(
-                navController,
-                animeId,
-                historyList[index].subId!!,
-                animeName
+                navController = navController,
+                animeSubId = animeSubId.toString(),
+                animeId = historyList[index].id,
+                animeName = animeName,
               )
             }
           }

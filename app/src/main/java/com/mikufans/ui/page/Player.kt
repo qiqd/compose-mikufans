@@ -55,6 +55,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -119,7 +120,7 @@ fun Player(
         time = System.currentTimeMillis()
       )
       val list = historyList.toMutableList()
-      val idx = list.indexOfFirst { it.id == animeId }
+      val idx = list.indexOfFirst { it.subId == animeSubId }
       if (idx >= 0) list[idx] = history else list.add(history)
       LocalStorage.setList(content, "view:history", list)
 //      PlayerViewModel
@@ -128,6 +129,9 @@ fun Player(
 
   /* 初始数据加载 */
   LaunchedEffect(Unit) {
+    if (subject != null) {
+      return@LaunchedEffect
+    }
     isLoading = true
     historyList =
       LocalStorage.getList(content, "view:history", History::class.java)?.toMutableList()
@@ -166,7 +170,14 @@ fun Player(
   Scaffold(topBar = {
     if (!isLandscape()) {
       TopAppBar(
-        title = { Text(subject?.nameCn ?: subject?.name ?: "", textAlign = TextAlign.Center) },
+        title = {
+          Text(
+            subject?.nameCn ?: subject?.name ?: "",
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+        },
         navigationIcon = {
           IconButton(onClick = { navController?.popBackStack() }) {
             Icon(

@@ -1,6 +1,7 @@
 package com.mikufans.ui.page
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,18 +9,20 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
-import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
-import androidx.compose.foundation.lazy.staggeredgrid.items
-import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -35,11 +38,15 @@ import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.xmd.miku.entiry.Anime
+import com.mikufans.xmd.miku.entiry.WebsiteDelay
 import com.mikufans.xmd.teto.service.impl.RedDrillBit
 import com.mikufans.xmd.util.SourceUtil
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,8 +58,39 @@ fun Index(navController: NavController) {
   var isLoading by rememberSaveable { mutableStateOf(false) }
   val focusManager = LocalFocusManager.current
   val coroutineScope = rememberCoroutineScope()
-  val lazyGridState = rememberLazyStaggeredGridState()
-  val sources = rememberSaveable { SourceUtil.getSourceWithDelay() }
+  val lazyGridState = rememberLazyListState()
+  var sources by rememberSaveable { mutableStateOf(emptyList<WebsiteDelay>()) }
+  LaunchedEffect(Unit) {
+    if (sources.isNotEmpty()) return@LaunchedEffect
+    Toast.makeText(navController.context, "初始化资源中", Toast.LENGTH_SHORT).show()
+    coroutineScope.launch(Dispatchers.IO) {
+      try {
+        withTimeout(30000) {
+          while (sources.isEmpty()) {
+            sources = SourceUtil.getSourceWithDelay()
+            delay(100) // 避免过于频繁的检查
+          }
+        }
+        withContext(Dispatchers.Main) {
+          Toast.makeText(
+            navController.context,
+            "初始化资源完成",
+            Toast.LENGTH_SHORT
+          ).show()
+        }
+      } catch (e: TimeoutCancellationException) {
+        Log.e("Index-Init", "初始化资源超时", e)
+        withContext(Dispatchers.Main) {
+          Toast.makeText(
+            navController.context,
+            "初始化资源失败",
+            Toast.LENGTH_SHORT
+          ).show()
+        }
+      }
+    }
+  }
+
   Column(modifier = Modifier.padding(horizontal = 8.dp)) {
     TextField(
       modifier = Modifier
@@ -63,8 +101,16 @@ fun Index(navController: NavController) {
       keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
       placeholder = { Text("请输入关键字") },
       maxLines = 1,
+      leadingIcon = {
+        Icon(imageVector = Icons.Default.Search, contentDescription = "搜索")
+      },
       keyboardActions = KeyboardActions(
         onSearch = {
+          if (sources.isEmpty()) {
+            Toast.makeText(navController.context, "初始化资源中，请稍后...", Toast.LENGTH_SHORT)
+              .show()
+            return@KeyboardActions
+          }
           Log.i("Index-Search", keyword)
           coroutineScope.launch(Dispatchers.IO) {
             try {
@@ -101,19 +147,17 @@ fun Index(navController: NavController) {
       }
     }
 
-    LazyVerticalStaggeredGrid(
-      columns = StaggeredGridCells.Fixed(3),
+    LazyColumn(
       state = lazyGridState,
       contentPadding = PaddingValues(vertical = 5.dp),
-      verticalItemSpacing = 5.dp,
-      horizontalArrangement = Arrangement.spacedBy(5.dp),
+      verticalArrangement = Arrangement.spacedBy(5.dp),
       modifier = Modifier.fillMaxSize()
     ) {
-      items(searchResult) {
-        AnimeCard(anime = it) { animeId, animeName ->
+      items(searchResult.size) { index ->
+        AnimeCard(anime = searchResult[index]) { animeId, animeName ->
           Navigation.navigateToAnimeDetail(
             navController = navController,
-            animeSubId = animeId,
+            animeSubId = animeId.toString(),
             animeName = animeName,
           )
         }

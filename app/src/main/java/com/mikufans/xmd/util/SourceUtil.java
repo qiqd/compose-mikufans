@@ -11,20 +11,20 @@ import java.util.List;
 import java.util.Map;
 
 public class SourceUtil {
-  private static final Map<String, HtmlParser> SOURCES = new HashMap<>();
-  private static final List<WebsiteDelay> delays = new ArrayList<>();
+    private static final Map<String, HtmlParser> SOURCES = new HashMap<>();
+    private static final List<WebsiteDelay> delays = new ArrayList<>();
 
-  static {
-    SOURCES.put("www.daafun.cc", new AAFun());
-    SOURCES.put("bgm.girigirilove.com", new Girigirilove());
-  }
+    static {
+        SOURCES.put("www.aafun.cc", new AAFun());
+        SOURCES.put("bgm.girigirilove.com", new Girigirilove());
+    }
 
-  public static void initSources() {
-    delays.addAll(HttpUtil.getDomainDelaysConcurrent(SOURCES));
+    public static void initSources() {
+        delays.addAll(HttpUtil.getDomainDelaysConcurrent(SOURCES));
 
-  }
+    }
 
-  public static List<WebsiteDelay> getSourceWithDelay() {
-    return delays;
-  }
+    public static List<WebsiteDelay> getSourceWithDelay() {
+        return delays;
+    }
 }

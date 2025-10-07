@@ -4,9 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,7 +29,7 @@ fun Subscribe(navController: NavController) {
   anime.coverUrl = "https://img.pan.kg/images/363957_pgptl.webp"
   anime.name = "夏日口袋"
   val content = LocalContext.current
-  val lazyGridState = rememberLazyGridState()
+  val lazyGridState = rememberLazyListState()
   var historyList by remember { mutableStateOf<List<History>>(emptyList()) }
   val loveList = remember(historyList) { historyList.filter { it.isLove } }
   LaunchedEffect(Unit) {
@@ -46,25 +45,26 @@ fun Subscribe(navController: NavController) {
     if (!historyList.any { it.isLove }) {
       EmptyCompose()
     } else {
-      LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+      LazyColumn(
         state = lazyGridState,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(vertical = 5.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = Modifier.fillMaxSize()
       ) {
         items(loveList.size) { index ->
           val isLove = loveList[index].isLove
           val anime1 = Anime(
             id = historyList[index].id.toString(),
+            subId = historyList[index].subId?.toInt(),
             name = historyList[index].nameCn,
           )
           anime1.coverUrl = historyList[index].cover
 
-          AnimeCard(anime1) { animeId, animeName ->
+          AnimeCard(anime1) { animeSubId, animeName ->
             Navigation.navigateToAnimeDetail(
               navController = navController,
-              animeSubId = animeId,
+              animeId = historyList[index].id.toString(),
+              animeSubId = animeSubId.toString(),
               animeName = animeName
             )
           }

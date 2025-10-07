@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -48,9 +50,11 @@ import java.net.URLDecoder
 
 class MainActivity : ComponentActivity() {
   init {
-    Thread {
-      SourceUtil.initSources()
-    }.start()
+    if (SourceUtil.getSourceWithDelay().isEmpty()) {
+      Thread {
+        SourceUtil.initSources()
+      }.start()
+    }
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,6 +109,11 @@ fun MainScreen(activity: ComponentActivity) {
             NavigationBarItem(
               icon = { Icon(screen.icon, contentDescription = screen.title) },
               selected = currentDestination == screen.route,
+              colors = NavigationBarItemDefaults.colors(
+//                selectedIconColor = MaterialTheme.colorScheme.primary,
+//                unselectedIconColor = MaterialTheme.colorScheme.tertiary,
+                indicatorColor = MaterialTheme.colorScheme.tertiary,
+              ),
               onClick = {
                 navController.navigate(screen.route) {
                   popUpTo(navController.graph.findStartDestination().id) {

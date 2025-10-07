@@ -4,9 +4,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
-import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
-import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.CircularProgressIndicator
@@ -81,7 +80,7 @@ fun Weekly(navController: NavController) {
 
 @Composable
 fun WeeklyPageContent(weekDay: List<Anime>?, navController: NavController) {
-  val lazyGridState = rememberLazyStaggeredGridState()
+  val lazyGridState = rememberLazyListState()
   if (weekDay == null) {
     Box(
       modifier = Modifier.fillMaxSize(),
@@ -90,22 +89,20 @@ fun WeeklyPageContent(weekDay: List<Anime>?, navController: NavController) {
       CircularProgressIndicator()
     }
   } else {
-    LazyVerticalStaggeredGrid(
-      columns = StaggeredGridCells.Fixed(3),
+    LazyColumn(
       state = lazyGridState,
       contentPadding = PaddingValues(vertical = 5.dp),
-      verticalItemSpacing = 5.dp,
-      horizontalArrangement = Arrangement.spacedBy(5.dp),
+      verticalArrangement = Arrangement.spacedBy(5.dp),
       modifier = Modifier.fillMaxSize()
     ) {
       items(weekDay.size) { index ->
         val item = weekDay[index]
         AnimeCard(
           anime = item
-        ) { animeId, animeName ->
+        ) { animeSubId, animeName ->
           Navigation.navigateToAnimeDetail(
             navController = navController,
-            animeSubId = animeId,
+            animeSubId = animeSubId.toString(),
             animeName = animeName,
           )
         }

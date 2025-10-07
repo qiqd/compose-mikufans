@@ -5,9 +5,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.mikufans.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,7 +56,7 @@ fun About(navController: NavController?) {
   )
   val apis = listOf(
     "Bangumi 番组计划（api.bgm.tv）" to "https://github.com/bangumi/api/blob/master/README.md",
-    "Giligili 源（仅供测试）" to "https://github.com/xxx/giligili",   // 换成真实 ToS 或仓库
+//    "Giligili 源（仅供测试）" to "https://github.com/xxx/giligili",   // 换成真实 ToS 或仓库
   )
   Scaffold(
     topBar = {
@@ -79,9 +80,13 @@ fun About(navController: NavController?) {
         Card(
           modifier = Modifier.size(80.dp), shape = MaterialTheme.shapes.large
         ) {
-          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("M", style = MaterialTheme.typography.headlineLarge)
-          }
+//          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+//            Text("M", style = MaterialTheme.typography.headlineLarge)
+//          }
+          Image(
+            painter = androidx.compose.ui.res.painterResource(id = R.drawable.icon),
+            contentDescription = "logo"
+          )
         }
         Spacer(Modifier.height(12.dp))
         Text(
@@ -90,7 +95,8 @@ fun About(navController: NavController?) {
           fontWeight = FontWeight.Bold
         )
         Text(
-          text = "Version 1.0.0",
+          text = ("v" + context.packageManager.getPackageInfo(context.packageName, 0)?.versionName)
+            ?: "1.0.0",
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant
         )

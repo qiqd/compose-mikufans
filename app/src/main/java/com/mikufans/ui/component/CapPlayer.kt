@@ -28,7 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -108,13 +107,14 @@ fun CapPlayer(
       onProcessChange(exoPlayer.currentPosition)
     }
   }
-  LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+  LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
     exoPlayer.pause()
   }
   LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
     exoPlayer.play()
   }
   BackHandler(enabled = isLandscape()) {
+    isFullscreen = false
     Orientation().forceOrientation(content, false)
   }
 
@@ -136,9 +136,9 @@ fun CapPlayer(
     }
   }
   /* ① 同步系统栏隐藏/显示 */
-  DisposableEffect(showController) {
-    if (!isFullscreen) return@DisposableEffect onDispose { }
-    val window = (content as android.app.Activity).window
+  LaunchedEffect(showController) {
+    if (!isFullscreen) return@LaunchedEffect
+    val window = activity.window
     val insetsController = WindowInsetsControllerCompat(window, window.decorView)
     if (showController) {
       // 退出沉浸：显示状态栏+导航栏
@@ -151,7 +151,6 @@ fun CapPlayer(
       insetsController.systemBarsBehavior =
         WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
-    onDispose { }
   }
 
   Box(

@@ -11,7 +11,7 @@ object Navigation {
   const val FULL_SEARCH = "fullSearch"
   fun navigateToAnimeDetail(
     navController: NavController,
-    animeId: String? = null,
+    animeId: String? = "",
     animeSubId: String,
     animeName: String
   ) {
@@ -30,7 +30,7 @@ object Navigation {
     episodeId: String
   ) {
     val animeSubId = URLEncoder.encode(animeSubId, "UTF-8")
-    val animeId = URLEncoder.encode(animeSubId, "UTF-8")
+    val animeId = URLEncoder.encode(animeId, "UTF-8")
     val eps = URLEncoder.encode(episodeId, "UTF-8")
     navController.navigate("$ANIME_PLAYER/$animeId/$animeSubId/$eps") {
       launchSingleTop = true
