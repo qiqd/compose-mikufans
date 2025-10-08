@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-10-07T14:51:54.995770800Z">
+        <DropdownSelection timestamp="2025-10-08T14:36:36.372779700Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\32467\.android\avd\Pixel_5_2_2.avd" />
+              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\32467\.android\avd\Pixel_5_2.avd" />
             </handle>
           </Target>
         </DropdownSelection>
@@ -28,6 +28,17 @@
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\32467\.android\avd\Pixel_5.avd" />
+            </handle>
+          </Target>
+        </DropdownSelection>
+        <DialogSelection />
+      </SelectionState>
+      <SelectionState runConfigName="PullToRefreshSample">
+        <option name="selectionMode" value="DROPDOWN" />
+        <DropdownSelection timestamp="2025-10-08T12:22:44.393220700Z">
+          <Target type="DEFAULT_BOOT">
+            <handle>
+              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\32467\.android\avd\Pixel_5_2.avd" />
             </handle>
           </Target>
         </DropdownSelection>

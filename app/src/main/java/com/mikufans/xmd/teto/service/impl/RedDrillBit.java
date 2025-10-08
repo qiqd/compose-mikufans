@@ -36,7 +36,7 @@ public class RedDrillBit implements DiscoveryService {
      * @return SubjectSearch
      */
     @Override
-    public List<Anime> fetchSearchResult(String keyword, Integer page, Integer size) {
+    public List<Anime> fetchSearchResult(String keyword, Integer page, Integer size) throws IOException {
         String searchUrl = "/v0/search/subjects";
         HashMap<String, Object> body = new HashMap<>();
 //        HashMap<String, Object> params = new HashMap<>();
@@ -66,15 +66,12 @@ public class RedDrillBit implements DiscoveryService {
                 return anime;
             }).collect(Collectors.toList());
             return animeList;
-        } catch (IOException e) {
-//            log.error("搜索结果获取失败: {}", e.getMessage());
-            throw new RuntimeException(e);
         }
     }
 
 
     @Override
-    public String fetchDailyRecommend() {
+    public String fetchDailyRecommend() throws IOException {
         return null;
     }
 
@@ -84,7 +81,7 @@ public class RedDrillBit implements DiscoveryService {
      * @return List<DailySchedule>
      */
     @Override
-    public List<Schedule> fetchWeeklyUpdate() {
+    public List<Schedule> fetchWeeklyUpdate() throws IOException {
         String url = "/calendar";
         Request request = HttpUtil.getRequest(baseUrl + url);
         try (Response response = client.newCall(request).execute()) {
@@ -114,8 +111,6 @@ public class RedDrillBit implements DiscoveryService {
                 schedule.setAnime(animeList);
                 return schedule;
             }).collect(Collectors.toList());
-        } catch (IOException e) {
-            throw new RuntimeException("每周更新获取失败:" + e);
         }
     }
 
@@ -126,7 +121,7 @@ public class RedDrillBit implements DiscoveryService {
      * @return EpisodeResult
      */
     @Override
-    public EpisodeResult fetchEpisode(String subjectId) {
+    public EpisodeResult fetchEpisode(String subjectId) throws IOException {
         String url = "/v0/episodes";
         HashMap<String, Object> params = new HashMap<>();
         params.put("subject_id", subjectId);
@@ -135,13 +130,10 @@ public class RedDrillBit implements DiscoveryService {
         try (Response response = client.newCall(request).execute()) {
             String s = ValidateUtil.validateResponse(response);
             return JSON.parseObject(s, EpisodeResult.class);
-        } catch (IOException e) {
-//            log.error("剧集信息获取失败: {}", e.getMessage());
-            throw new RuntimeException(e);
         }
     }
 
-    public Anime fetchSubject(Integer subjectId) {
+    public Anime fetchSubject(Integer subjectId) throws IOException {
         String url = "/v0/subjects/" + subjectId;
         Request request = HttpUtil.getRequest(baseUrl + url);
         try (Response response = HttpUtil.getClient().newCall(request).execute()) {
@@ -156,8 +148,6 @@ public class RedDrillBit implements DiscoveryService {
             anime.setTotalEpisodes(subject.getEps());
             anime.setCoverUrl(subject.getImages().getLarge());
             return anime;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
         }
     }
 }

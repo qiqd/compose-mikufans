@@ -8,11 +8,11 @@ import java.util.List;
 
 
 public interface DiscoveryService {
-  List<Anime> fetchSearchResult(String keyword, Integer page, Integer size);
+    List<Anime> fetchSearchResult(String keyword, Integer page, Integer size) throws Exception;
 
-  String fetchDailyRecommend();
+    String fetchDailyRecommend() throws Exception;
 
-  List<Schedule> fetchWeeklyUpdate();
+    List<Schedule> fetchWeeklyUpdate() throws Exception;
 
-  EpisodeResult fetchEpisode(String subjectId);
+    EpisodeResult fetchEpisode(String subjectId) throws Exception;
 }

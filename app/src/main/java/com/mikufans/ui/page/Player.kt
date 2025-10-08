@@ -234,10 +234,18 @@ fun Player(
             isLoading = true
             currentPlayingEpisodeIndex = index
             currentPlayingEpisodeId = newId
-            coroutineScope.launch(Dispatchers.IO) {
-//              playInfo = GiligiliAccessPoint().getVideoUrl(currentPlayingEpisodeId)
-              playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId)
+            try {
+              coroutineScope.launch(Dispatchers.IO) {
+                playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId)
+              }
+            } catch (e: Exception) {
               isLoading = false
+              Toast.makeText(
+                navController?.context,
+                "错误:${e.message}",
+                Toast.LENGTH_SHORT
+              ).show()
+            } finally {
             }
             currentPosition = 0L
           }

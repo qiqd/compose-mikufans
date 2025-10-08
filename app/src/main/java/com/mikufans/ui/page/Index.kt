@@ -18,9 +18,13 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +51,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import okio.IOException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +65,9 @@ fun Index(navController: NavController) {
   val coroutineScope = rememberCoroutineScope()
   val lazyGridState = rememberLazyListState()
   var sources by rememberSaveable { mutableStateOf(emptyList<WebsiteDelay>()) }
+  var isRefreshing by rememberSaveable { mutableStateOf(false) }
+  val pullToRefreshState = rememberPullToRefreshState()
+
   LaunchedEffect(Unit) {
     if (sources.isNotEmpty()) return@LaunchedEffect
     Toast.makeText(navController.context, "初始化资源中", Toast.LENGTH_SHORT).show()
@@ -84,6 +92,23 @@ fun Index(navController: NavController) {
           Toast.makeText(
             navController.context,
             "初始化资源失败",
+            Toast.LENGTH_SHORT
+          ).show()
+        }
+      } catch (e: IOException) {
+        e.printStackTrace()
+        withContext(Dispatchers.Main) {
+          Toast.makeText(
+            navController.context,
+            "网络无法使用",
+            Toast.LENGTH_SHORT
+          ).show()
+        }
+      } catch (e: Exception) {
+        withContext(Dispatchers.Main) {
+          Toast.makeText(
+            navController.context,
+            e.message,
             Toast.LENGTH_SHORT
           ).show()
         }
@@ -127,6 +152,13 @@ fun Index(navController: NavController) {
                 searchResult = emptyList()
               }
               Log.e("Index-Search", "搜索失败", e)
+              withContext(Dispatchers.Main) {
+                Toast.makeText(
+                  navController.context,
+                  "搜索失败:${e.message}",
+                  Toast.LENGTH_SHORT
+                ).show()
+              }
             } finally {
               withContext(Dispatchers.Main) {
                 isLoading = false
@@ -147,21 +179,52 @@ fun Index(navController: NavController) {
       }
     }
 
-    LazyColumn(
-      state = lazyGridState,
-      contentPadding = PaddingValues(vertical = 5.dp),
-      verticalArrangement = Arrangement.spacedBy(5.dp),
-      modifier = Modifier.fillMaxSize()
+    PullToRefreshBox(
+      state = pullToRefreshState,
+      isRefreshing = isRefreshing,
+      indicator = {
+        Indicator(
+          modifier = Modifier.align(Alignment.TopCenter),
+          isRefreshing = isRefreshing,
+          color = MaterialTheme.colorScheme.primary,
+          state = pullToRefreshState
+        )
+      },
+      onRefresh = {
+        coroutineScope.launch(Dispatchers.IO) {
+          try {
+            isRefreshing = true
+            while (SourceUtil.getSourceWithDelay().isEmpty()) {
+              SourceUtil.initSources()
+            }
+            delay(2000L)
+          } catch (e: Exception) {
+            // 错误处理
+            Log.e("Index-Refresh", "刷新失败", e)
+          } finally {
+            isRefreshing = false
+          }
+        }
+      }
     ) {
-      items(searchResult.size) { index ->
-        AnimeCard(anime = searchResult[index]) { animeId, animeName ->
-          Navigation.navigateToAnimeDetail(
-            navController = navController,
-            animeSubId = animeId.toString(),
-            animeName = animeName,
-          )
+      LazyColumn(
+        state = lazyGridState,
+        contentPadding = PaddingValues(vertical = 5.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = Modifier
+          .fillMaxSize()
+      ) {
+        items(searchResult.size) { index ->
+          AnimeCard(anime = searchResult[index]) { animeId, animeName ->
+            Navigation.navigateToAnimeDetail(
+              navController = navController,
+              animeSubId = animeId.toString(),
+              animeName = animeName,
+            )
+          }
         }
       }
     }
+
   }
 }

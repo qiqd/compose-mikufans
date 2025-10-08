@@ -1,5 +1,6 @@
 package com.mikufans.ui.component
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +29,7 @@ import com.mikufans.R
 import com.mikufans.util.GifLoader
 import com.mikufans.util.RelativeTime
 import com.mikufans.xmd.miku.entiry.Anime
+import com.mikufans.xmd.util.SourceUtil
 
 @Composable
 fun AnimeCard(
@@ -37,14 +39,20 @@ fun AnimeCard(
   dateTime: Long = 0L,
   onTap: (animeSubId: Int, animeName: String) -> Unit = { _, _ -> }
 ) {
-
+  val context = LocalContext.current
   Row(
     modifier = Modifier
       .fillMaxWidth()
       .height(150.dp)
       .clip(MaterialTheme.shapes.medium)  // 先裁剪出圆角
       .shadow(0.dp, MaterialTheme.shapes.medium)  // 再添加阴影，使用相同形状
-      .clickable { onTap(anime?.subId!!, anime.nameCn ?: anime.name ?: "") },
+      .clickable {
+        if (SourceUtil.getSourceWithDelay().isEmpty()) {
+          Toast.makeText(context, "数据源加载中，请稍后再试", Toast.LENGTH_SHORT).show()
+          return@clickable
+        }
+        onTap(anime?.subId!!, anime.nameCn ?: anime.name ?: "")
+      },
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(5.dp)
   ) {

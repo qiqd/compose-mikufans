@@ -1,3 +1,4 @@
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,7 +31,6 @@ import com.mikufans.ui.nav.Navigation
 import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.Schedule
 import com.mikufans.xmd.teto.service.impl.RedDrillBit
-import com.mikufans.xmd.util.SourceUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -42,19 +42,23 @@ fun Weekly(navController: NavController) {
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   var weekly by rememberSaveable { mutableStateOf(List<Schedule?>(7) { null }) }
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
-  val sources = rememberSaveable { SourceUtil.getSourceWithDelay() }
   LaunchedEffect(Unit) {
-//    if (weekly.isNotEmpty()) return@LaunchedEffect
     isLoading = true
-    coroutineScope.launch(Dispatchers.IO) {
-//      val template = GiligiliAccessPoint().schedule
-//      weekly = sources[0].service.weeklySchedule
-//      weekly = template
-
-      val fetchWeeklyUpdate = RedDrillBit().fetchWeeklyUpdate()
-      weekly = fetchWeeklyUpdate
+    try {
+      coroutineScope.launch(Dispatchers.IO) {
+        val fetchWeeklyUpdate = RedDrillBit().fetchWeeklyUpdate()
+        weekly = fetchWeeklyUpdate
+      }
+    } catch (e: Exception) {
+      Toast.makeText(
+        navController.context,
+        "错误:${e.message}",
+        Toast.LENGTH_SHORT
+      ).show()
+    } finally {
+      isLoading = false
     }
-    isLoading = false
+
   }
   Column(modifier = Modifier.padding(horizontal = 8.dp)) {
     TabRow(selectedTabIndex = tabIndex.value) {

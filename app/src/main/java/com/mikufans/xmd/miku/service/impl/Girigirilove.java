@@ -13,7 +13,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -78,8 +77,6 @@ public class Girigirilove extends CommonTemplate implements Serializable {
                 animeList.add(anime);
             }
             return animeList;
-        } catch (IOException e) {
-            throw new Exception("获取搜索结果失败", e);
         }
     }
 

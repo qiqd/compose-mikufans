@@ -22,8 +22,8 @@ android {
     applicationId = "com.mikufans"
     minSdk = 26
     targetSdk = 36
-    versionCode = 6
-    versionName = "1.0.3"
+    versionCode = 7
+    versionName = "1.0.4"
     androidResources {
       localeFilters += listOf("en", "zh-rCN")
     }
@@ -79,6 +79,7 @@ dependencies {
   // Coil 图片加载库
   implementation("io.coil-kt:coil-compose:2.6.0")
   implementation("io.coil-kt:coil-gif:2.6.0")
+  implementation("androidx.compose.material3:material3:1.2.0")
 
 
   implementation(libs.material3)

@@ -11,11 +11,9 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -103,7 +101,7 @@ fun MainScreen(activity: ComponentActivity) {
     bottomBar = {
       AnimatedVisibility(visible = showNavigationBar, enter = fadeIn(), exit = fadeOut()) {
         NavigationBar(
-          modifier = Modifier.height(100.dp)
+//          modifier = Modifier.height(100.dp)
         ) {
           screens.forEach { screen ->
             NavigationBarItem(
@@ -112,7 +110,7 @@ fun MainScreen(activity: ComponentActivity) {
               colors = NavigationBarItemDefaults.colors(
 //                selectedIconColor = MaterialTheme.colorScheme.primary,
 //                unselectedIconColor = MaterialTheme.colorScheme.tertiary,
-                indicatorColor = MaterialTheme.colorScheme.tertiary,
+//                indicatorColor = MaterialTheme.colorScheme.tertiary,
               ),
               onClick = {
                 navController.navigate(screen.route) {

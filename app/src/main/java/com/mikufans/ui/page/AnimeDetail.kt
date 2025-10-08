@@ -70,6 +70,7 @@ fun AnimeDetail(
   var animeDetail by rememberSaveable { mutableStateOf<AnimeDetail?>(null) }
   val coroutineScope = rememberCoroutineScope()
   var isLoading by remember { mutableStateOf(false) }
+  var isLoadLine by remember { mutableStateOf(true) }
   val sources = rememberSaveable { SourceUtil.getSourceWithDelay() }
   var id by rememberSaveable { mutableStateOf(animeId) }
   LaunchedEffect(Unit) {
@@ -99,6 +100,7 @@ fun AnimeDetail(
         }
       } finally {
         isLoading = false
+        isLoadLine = false
       }
     }
   }
@@ -127,7 +129,8 @@ fun AnimeDetail(
             id,
             subject!!,
             animeDetail,
-            navController
+            navController,
+            isLoadLine
           )
 
           else -> Box(
@@ -148,6 +151,7 @@ private fun AnimeDetailContent(
   subject: Anime,
   animeDetail: AnimeDetail?,
   navController: NavController,
+  isLoadLine: Boolean
 ) {
   LazyColumn(
     modifier = Modifier
@@ -179,6 +183,25 @@ private fun AnimeDetailContent(
             Column(Modifier.padding(16.dp)) {
               Text(
                 text = "${source.name ?: "播放路线"} ${index + 1}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+              )
+            }
+          }
+        }
+      }
+    } ?: run {
+      item {
+        if (isLoadLine) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+          ) { CircularProgressIndicator() }
+        } else {
+          Card {
+            Column(Modifier.padding(16.dp)) {
+              Text(
+                text = "暂无播放路线",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
               )

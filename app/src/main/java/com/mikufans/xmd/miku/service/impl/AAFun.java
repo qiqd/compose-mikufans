@@ -19,14 +19,12 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -48,7 +46,7 @@ public class AAFun implements HtmlParser, Serializable {
 
 
     @Override
-    public List<Anime> getSearchResult(String keyword, Integer page, Integer size) {
+    public List<Anime> getSearchResult(String keyword, Integer page, Integer size) throws Exception {
         String searchUrl = "/feng-s.html?wd=" + keyword + "&submit=";
         // 执行网络请求并返回结果
         OkHttpClient client = HttpUtil.getClient();
@@ -64,21 +62,17 @@ public class AAFun implements HtmlParser, Serializable {
                 String status = item.select("span.hl-lc-1.remarks").text();
                 Anime anime = new Anime();
                 anime.setId(a.attr("href"));
-                anime.setName(a.attr("name"));
+                anime.setNameCn(a.attr("title"));
                 anime.setCoverUrl(a.attr("data-original"));
                 anime.setStatus(status);
                 return anime;
             }).collect(Collectors.toList());
 
-        } catch (IOException e) {
-            System.out.println(e.getMessage());
-            return Collections.emptyList();
-//            throw new RuntimeException("解析搜索结果错误", e);
         }
     }
 
     @Override
-    public AnimeDetail getAnimeDetail(String videoId) {
+    public AnimeDetail getAnimeDetail(String videoId) throws Exception {
         Log.i("getAnimeDetail-Url", baseUrl + videoId);
         Request request = HttpUtil.getRequest(baseUrl + videoId);
         try (Response response = HttpUtil.getClient().newCall(request).execute()) {
@@ -229,14 +223,11 @@ public class AAFun implements HtmlParser, Serializable {
             animeDetail.setAnime(anime);
             animeDetail.setSources(sources);
             return animeDetail;
-        } catch (IOException e) {
-//            log.error("解析详情页错误:{}", e.getMessage());
-            throw new RuntimeException("解析详情页错误", e);
         }
     }
 
     @Override
-    public PlayInfo getPlayInfo(String episodeId) {
+    public PlayInfo getPlayInfo(String episodeId) throws Exception {
         Log.i("getPlayInfo-Url:", baseUrl + episodeId);
         Request request = HttpUtil.getRequest(baseUrl + episodeId);
         try (Response response = HttpUtil.getClient().newCall(request).execute()) {
@@ -285,9 +276,6 @@ public class AAFun implements HtmlParser, Serializable {
                 playInfo.setCurrentEpisodeUrl(currentUrl);
                 return playInfo;
             }
-        } catch (IOException e) {
-//            log.error("解析详情页错误:{}", e.getMessage());
-            throw new RuntimeException("解析详情页错误", e);
         }
     }
 
@@ -297,7 +285,7 @@ public class AAFun implements HtmlParser, Serializable {
     }
 
     @Override
-    public List<Schedule> getWeeklySchedule() {
+    public List<Schedule> getWeeklySchedule() throws Exception {
         Log.i("getWeeklySchedule-Url:", baseUrl);
         Request request = HttpUtil.getRequest(baseUrl);
 
@@ -319,9 +307,6 @@ public class AAFun implements HtmlParser, Serializable {
                 schedules.add(new Schedule(i, anime));
             }
             return schedules;
-        } catch (IOException e) {
-//            log.error("获取每日推荐错误:{}", e.getMessage());
-            throw new RuntimeException(e);
         }
     }
 
