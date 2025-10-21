@@ -26,7 +26,7 @@ import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.History
 
 @Composable
-fun Subscribe(navController: NavController, activity: ComponentActivity) {
+fun SubscribePage(navController: NavController, activity: ComponentActivity) {
   val anime = Anime()
   anime.coverUrl = "https://img.pan.kg/images/363957_pgptl.webp"
   anime.name = "夏日口袋"

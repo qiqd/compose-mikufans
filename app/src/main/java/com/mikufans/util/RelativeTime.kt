@@ -39,4 +39,12 @@ object RelativeTime {
       else -> SimpleDateFormat("MM-dd", Locale.getDefault()).format(Date(millis))
     }
   }
+
+  fun formatTime(ms: Long): String {
+    if (ms <= 0) return "00:00"
+    val s = (ms / 1000).toInt()
+    val m = s / 60
+    val r = s % 60
+    return String.format(Locale.getDefault(), "%02d:%02d", m, r)
+  }
 }

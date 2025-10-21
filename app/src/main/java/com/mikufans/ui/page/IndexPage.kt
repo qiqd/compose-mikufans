@@ -57,7 +57,7 @@ import okio.IOException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Index(navController: NavController, activity: ComponentActivity) {
+fun IndexPage(navController: NavController, activity: ComponentActivity) {
   var keyword by rememberSaveable { mutableStateOf("") }
   var searchResult by rememberSaveable {
     mutableStateOf<List<Anime>>(emptyList())
@@ -89,7 +89,7 @@ fun Index(navController: NavController, activity: ComponentActivity) {
           ).show()
         }
       } catch (e: TimeoutCancellationException) {
-        Log.e("Index-Init", "初始化资源超时", e)
+        Log.e("IndexPage-Init", "初始化资源超时", e)
         withContext(Dispatchers.Main) {
           Toast.makeText(
             navController.context,
@@ -138,7 +138,7 @@ fun Index(navController: NavController, activity: ComponentActivity) {
               .show()
             return@KeyboardActions
           }
-          Log.i("Index-Search", keyword)
+          Log.i("IndexPage-Search", keyword)
           coroutineScope.launch(Dispatchers.IO) {
             try {
               isLoading = true
@@ -153,7 +153,7 @@ fun Index(navController: NavController, activity: ComponentActivity) {
               withContext(Dispatchers.Main) {
                 searchResult = emptyList()
               }
-              Log.e("Index-Search", "搜索失败", e)
+              Log.e("IndexPage-Search", "搜索失败", e)
               withContext(Dispatchers.Main) {
                 Toast.makeText(
                   navController.context,
@@ -202,7 +202,7 @@ fun Index(navController: NavController, activity: ComponentActivity) {
             delay(2000L)
           } catch (e: Exception) {
             // 错误处理
-            Log.e("Index-Refresh", "刷新失败", e)
+            Log.e("IndexPage-Refresh", "刷新失败", e)
           } finally {
             isRefreshing = false
           }

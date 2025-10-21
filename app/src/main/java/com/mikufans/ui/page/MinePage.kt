@@ -18,7 +18,7 @@ import androidx.navigation.NavController
 import com.mikufans.ui.nav.Navigation
 
 @Composable
-fun Me(navController: NavController, activity: ComponentActivity) {
+fun MinePage(navController: NavController, activity: ComponentActivity) {
   BackHandler { activity.moveTaskToBack(true) }
   LazyColumn {
     item {

@@ -40,7 +40,7 @@ import com.mikufans.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun About(navController: NavController?) {
+fun AboutPage(navController: NavController?) {
   val context = LocalContext.current
 
   // 库名 + 协议链接

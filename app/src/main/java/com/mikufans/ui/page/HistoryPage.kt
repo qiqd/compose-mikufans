@@ -34,7 +34,7 @@ import com.mikufans.xmd.miku.entiry.History
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryRecord(navController: NavController) {
+fun HistoryPage(navController: NavController) {
   val context = LocalContext.current
   val lazyGridState = rememberLazyListState()
   var historyList by remember { mutableStateOf<List<History>>(emptyList()) }

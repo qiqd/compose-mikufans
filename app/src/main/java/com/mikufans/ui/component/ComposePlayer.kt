@@ -56,8 +56,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.mikufans.util.RelativeTime.formatTime
 import kotlinx.coroutines.delay
-import java.util.Locale
 import kotlin.math.abs
 
 @Composable
@@ -396,13 +396,4 @@ fun CustomPlayerController(
       }
     }
   }
-}
-
-/* --------------------- 工具 --------------------- */
-fun formatTime(ms: Long): String {
-  if (ms <= 0) return "00:00"
-  val s = (ms / 1000).toInt()
-  val m = s / 60
-  val r = s % 60
-  return String.format(Locale.getDefault(), "%02d:%02d", m, r)
 }

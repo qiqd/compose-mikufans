@@ -26,7 +26,7 @@ public interface HtmlParser {
      * 解析视频详情信息
      *
      * @param videoId 视频ID
-     * @return AnimeDetail
+     * @return DetailPage
      * @throws Exception 解析异常
      */
     AnimeDetail getAnimeDetail(String videoId) throws Exception;

@@ -1,6 +1,6 @@
 package com.mikufans
 
-import Weekly
+import WeeklyPage
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -31,14 +31,14 @@ import androidx.navigation.compose.rememberNavController
 import com.alibaba.fastjson.JSON
 import com.mikufans.ui.nav.BottomNavigationItem
 import com.mikufans.ui.nav.Navigation
-import com.mikufans.ui.page.About
-import com.mikufans.ui.page.AnimeDetail
+import com.mikufans.ui.page.AboutPage
+import com.mikufans.ui.page.DetailPage
 import com.mikufans.ui.page.FullSearch
-import com.mikufans.ui.page.HistoryRecord
-import com.mikufans.ui.page.Index
-import com.mikufans.ui.page.Me
-import com.mikufans.ui.page.Player
-import com.mikufans.ui.page.Subscribe
+import com.mikufans.ui.page.HistoryPage
+import com.mikufans.ui.page.IndexPage
+import com.mikufans.ui.page.MinePage
+import com.mikufans.ui.page.PlaybackPage
+import com.mikufans.ui.page.SubscribePage
 import com.mikufans.ui.theme.MikufansTheme
 import com.mikufans.xmd.miku.entiry.Episode
 import com.mikufans.xmd.util.SourceUtil
@@ -132,20 +132,20 @@ fun MainScreen(activity: ComponentActivity) {
         navController = navController,
         startDestination = BottomNavigationItem.Index.route,
       ) {
-        composable(BottomNavigationItem.Index.route) { Index(navController, activity) }
-        composable(BottomNavigationItem.Weekly.route) { Weekly(navController, activity) }
-        composable(BottomNavigationItem.Subscribe.route) { Subscribe(navController, activity) }
+        composable(BottomNavigationItem.Index.route) { IndexPage(navController, activity) }
+        composable(BottomNavigationItem.Weekly.route) { WeeklyPage(navController, activity) }
+        composable(BottomNavigationItem.Subscribe.route) { SubscribePage(navController, activity) }
         composable(
           route = BottomNavigationItem.Me.route,
 //        enterTransition = { if (showNavigationBar) fadeIn() else EnterTransition.None },
 //        exitTransition = { if (showNavigationBar) fadeOut() else ExitTransition.None }
-        ) { Me(navController, activity) }
+        ) { MinePage(navController, activity) }
         composable(Navigation.ANIME_DETAIL + "/{animeId}/{animeSubId}/{animeName}") { backStackEntry ->
           var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
           animeId = URLDecoder.decode(animeId, "UTF-8")
           val animeName = backStackEntry.arguments?.getString("animeName") ?: ""
           val animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
-          AnimeDetail(animeId, animeSubId.toInt(), animeName, navController)
+          DetailPage(animeId, animeSubId.toInt(), animeName, navController)
         }
         composable(Navigation.ANIME_PLAYER + "/{animeId}/{animeSubId}/{episodes}") { backStackEntry ->
           var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
@@ -155,10 +155,10 @@ fun MainScreen(activity: ComponentActivity) {
           episodes = URLDecoder.decode(episodes, "UTF-8")
 
           val source = JSON.parseArray(episodes, Episode::class.java)
-          Player(animeId, animeSubId, navController, source, activity)
+          PlaybackPage(animeId, animeSubId, navController, source, activity)
         }
-        composable(route = Navigation.HISTORY) { HistoryRecord(navController) }
-        composable(route = Navigation.ABOUT) { About(navController) }
+        composable(route = Navigation.HISTORY) { HistoryPage(navController) }
+        composable(route = Navigation.ABOUT) { AboutPage(navController) }
         composable(route = Navigation.FULL_SEARCH + "/{keyword}") { backStackEntry ->
           val keyword = backStackEntry.arguments?.getString("keyword") ?: ""
           FullSearch(keyword, navController)

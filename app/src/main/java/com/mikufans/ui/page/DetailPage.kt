@@ -59,7 +59,7 @@ import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AnimeDetail(
+fun DetailPage(
   animeId: String = "",
   animeSubId: Int,
   animeName: String,

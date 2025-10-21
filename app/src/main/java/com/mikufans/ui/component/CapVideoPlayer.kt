@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateBefore
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.ImageAspectRatio
 import androidx.compose.material.icons.filled.Pause
@@ -43,7 +44,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.ViewComfy
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -64,6 +64,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,6 +72,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -88,8 +90,12 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
+import com.mikufans.util.Orientation
+import com.mikufans.util.RelativeTime.formatTime
+import com.mikufans.view.CapPlayerViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import java.util.Locale
+import kotlinx.coroutines.launch
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,7 +109,7 @@ fun CapVideoPlayer(
   showPreviousButton: Boolean = true,
   navController: NavController? = null,
   playList: List<String> = listOf(),
-  onHeaderBackButtonTab: () -> Unit = {},
+  onLeadingBackButtonTab: () -> Unit = {},
   onEpisodeTab: (Int) -> Unit = {},
   onPositionChange: (Long) -> Unit = {},
   onDurationChange: (Long) -> Unit = {},
@@ -123,9 +129,11 @@ fun CapVideoPlayer(
   var currentEpisodeIndex by rememberSaveable { mutableIntStateOf(episodeIndex) }
   var mediaPropertyChangeText by rememberSaveable { mutableStateOf("") }
   var showMediaPropertyChangeText by rememberSaveable { mutableStateOf(false) }
-  var seekAccumulatePx by rememberSaveable { mutableStateOf(0f) }
+  var seekAccumulatePx by rememberSaveable { mutableFloatStateOf(0f) }
+  var controllerHideJob by remember { mutableStateOf<Job?>(null) }
+  val scope = rememberCoroutineScope()
   var resizeMode by rememberSaveable { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
-  val playerViewModel: PlayerViewModel = viewModel()
+  val playerViewModel: CapPlayerViewModel = viewModel()
   val exoPlayer = remember { playerViewModel.getPlayer(current) }
 //初次加载播放器
   LaunchedEffect(Unit) {
@@ -165,7 +173,9 @@ fun CapVideoPlayer(
     }
   }
   BackHandler(enabled = isLandscape()) {
-    OrientationUtil.forceOrientation(current, false)
+    isLandscape = false
+    onLeadingBackButtonTab()
+    Orientation.forceOrientation(current, false)
   }/* ① 同步系统栏隐藏/显示 */
   LaunchedEffect(isLandscape) {
 
@@ -181,6 +191,25 @@ fun CapVideoPlayer(
         WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
   }
+
+  LaunchedEffect(isPlaying, showVideoController) {
+    if (!isPlaying || !showVideoController) {
+      controllerHideJob?.cancel()
+      return@LaunchedEffect
+    }
+    controllerHideJob?.cancel()
+    controllerHideJob = launch {
+      delay(5_000)
+      showVideoController = false
+    }
+  }
+
+  val resetControllerHideTimer = {
+    controllerHideJob?.cancel()
+    if (isPlaying && showVideoController) {
+      controllerHideJob = scope.launch { delay(5_000); showVideoController = false }
+    }
+  }
   Box(
     modifier = if (isLandscape()) {
       modifier.fillMaxSize()
@@ -191,6 +220,19 @@ fun CapVideoPlayer(
     }.then(
       Modifier
         .background(Color.Black)
+        .pointerInput(Unit) {
+          // 只监听“按下”事件，不消费，仅用于重置计时器
+          awaitPointerEventScope {
+            while (true) {
+              val event = awaitPointerEvent(PointerEventPass.Initial)
+              // 只要检测到任何手指按下就重置
+              if (event.changes.any { it.pressed }) {
+                resetControllerHideTimer()
+              }
+              // 不调用 change.consume()，事件继续下发给子级
+            }
+          }
+        }
         .clickable(
           indication = null, interactionSource = remember { MutableInteractionSource() }) {
           if (showEpisodeList) {
@@ -231,7 +273,7 @@ fun CapVideoPlayer(
         ) {
           IconButton(onClick = {
             if (isLandscape) {
-              OrientationUtil.forceOrientation(current, false)
+              Orientation.forceOrientation(current, false)
             } else {
               navController?.popBackStack()
             }
@@ -346,7 +388,7 @@ fun CapVideoPlayer(
               }
             }) {
           AnimatedVisibility(
-            visible = showEpisodeList,
+            visible = showEpisodeList && playList.isNotEmpty(),
             enter = slideInHorizontally { it } + fadeIn(),
             exit = slideOutHorizontally { it } + fadeOut()) {
             LazyVerticalGrid(
@@ -471,7 +513,11 @@ fun CapVideoPlayer(
           }
           //当前时间/总时间
           Text(
-            text = "${formatTime(currentPosition)}/${formatTime(duration)}",
+            text = "${formatTime(currentPosition)}/${
+              formatTime(
+                duration
+              )
+            }",
             textAlign = TextAlign.Center,
 //          modifier = Modifier
 //            .background(Color.Yellow)
@@ -489,7 +535,7 @@ fun CapVideoPlayer(
                   .size(40.dp)
                   .padding(end = 8.dp)
               ) {
-                Icon(Icons.Default.ViewComfy, contentDescription = "Select episode")
+                Icon(Icons.AutoMirrored.Filled.PlaylistPlay, contentDescription = "Select episode")
               }
             }
           }
@@ -497,7 +543,9 @@ fun CapVideoPlayer(
           AnimatedVisibility(visible = isLandscape) {
             Row {
               IconButton(
-                onClick = { isAspectMenuOpen = !isAspectMenuOpen },
+                onClick = {
+                  isAspectMenuOpen = !isAspectMenuOpen
+                },
                 modifier = Modifier
                   .size(40.dp)
                   .padding(end = 8.dp)
@@ -567,7 +615,7 @@ fun CapVideoPlayer(
           }
           IconButton(onClick = {
             isLandscape = !isLandscape
-            OrientationUtil.forceOrientation(current, isLandscape)
+            Orientation.forceOrientation(current, isLandscape)
           }) {
             Icon(
               imageVector = Icons.Filled.Fullscreen, contentDescription = "Fullscreen"
@@ -579,7 +627,7 @@ fun CapVideoPlayer(
   }
   // 媒体属性变更提示
   AnimatedVisibility(
-    visible = showMediaPropertyChangeText && mediaPropertyChangeText.isNotEmpty(),   // 用变量控制显隐
+    visible = showMediaPropertyChangeText && mediaPropertyChangeText.isNotEmpty() && isLandscape,   // 用变量控制显隐
     enter = fadeIn(),
     exit = fadeOut(),
   ) {
@@ -602,13 +650,6 @@ fun CapVideoPlayer(
   }
 }
 
-fun formatTime(ms: Long): String {
-  if (ms <= 0) return "00:00"
-  val s = (ms / 1000).toInt()
-  val m = s / 60
-  val r = s % 60
-  return String.format(Locale.getDefault(), "%02d:%02d", m, r)
-}
 
 @Composable
 fun isLandscape(): Boolean =

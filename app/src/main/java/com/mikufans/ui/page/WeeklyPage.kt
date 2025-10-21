@@ -37,7 +37,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Composable
-fun Weekly(navController: NavController, activity: ComponentActivity) {
+fun WeeklyPage(navController: NavController, activity: ComponentActivity) {
   val tabs = arrayOf("一", "二", "三", "四", "五", "六", "日")
   val coroutineScope = rememberCoroutineScope()
   var isLoading by rememberSaveable { mutableStateOf(false) }

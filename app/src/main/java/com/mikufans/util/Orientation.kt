@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 
-class Orientation {
+object Orientation {
   /**
    * 强制设置屏幕方向
    * @param context 任意 Context

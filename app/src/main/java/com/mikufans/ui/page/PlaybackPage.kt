@@ -76,7 +76,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Player(
+fun PlaybackPage(
   animeId: String,
   animeSubId: String,
   navController: NavController?,
