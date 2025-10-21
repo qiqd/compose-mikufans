@@ -80,6 +80,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.zIndex
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
@@ -97,6 +98,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+private var currentUrl = ""
+
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,21 +108,29 @@ fun CapVideoPlayer(
   videoUrl: String? = null,
   title: String,
   episodeIndex: Int = 0,
+  initPosition: Long = 0L,
+  showHeader: Boolean = true,
   showNextButton: Boolean = true,
   showPreviousButton: Boolean = true,
   navController: NavController? = null,
+  innerPadding: PaddingValues = PaddingValues(16.dp),
   playList: List<String> = listOf(),
+  onNextTab: () -> Unit = {},
+  onPreviousTab: () -> Unit = {},
+  onPlayPause: (Boolean) -> Unit = {},
   onLeadingBackButtonTab: () -> Unit = {},
   onEpisodeTab: (Int) -> Unit = {},
+  onLandscapeChange: (Boolean) -> Unit = {},
   onPositionChange: (Long) -> Unit = {},
   onDurationChange: (Long) -> Unit = {},
+  onPlayerError: (Exception) -> Unit = {},
 ) {
   val current = LocalContext.current
   val window = (current as Activity).window
   val systemBars = WindowInsets.systemBars
   var isLandscape by rememberSaveable { mutableStateOf(false) }
   var isPlaying by rememberSaveable { mutableStateOf(false) }
-  var showVideoController by rememberSaveable { mutableStateOf(true) }
+  var showVideoController by rememberSaveable { mutableStateOf(false) }
   var showEpisodeList by rememberSaveable { mutableStateOf(false) }
   var sliderPosition by rememberSaveable { mutableFloatStateOf(0f) }
   var currentPosition by rememberSaveable { mutableLongStateOf(0L) }
@@ -133,22 +144,30 @@ fun CapVideoPlayer(
   var controllerHideJob by remember { mutableStateOf<Job?>(null) }
   val scope = rememberCoroutineScope()
   var resizeMode by rememberSaveable { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
-  val playerViewModel: CapPlayerViewModel = viewModel()
-  val exoPlayer = remember { playerViewModel.getPlayer(current) }
+  val capPlayerViewModel: CapPlayerViewModel = viewModel()
+  val exoPlayer = remember {
+    capPlayerViewModel.getPlayer(current) { exception ->
+      onPlayerError(exception)
+    }
+  }
+
 //初次加载播放器
-  LaunchedEffect(Unit) {
+  LaunchedEffect(videoUrl) {
+    if (currentUrl == videoUrl) return@LaunchedEffect
     val url = videoUrl ?: playList.getOrNull(episodeIndex) ?: return@LaunchedEffect
     exoPlayer.setMediaItem(MediaItem.fromUri(url))
     exoPlayer.prepare()
+    exoPlayer.seekTo(initPosition)
     exoPlayer.playWhenReady = true
+    currentUrl = url
   }
   // 2. 切换视频时更换 MediaItem，不会重建播放器
   LaunchedEffect(currentEpisodeIndex) {
     val newUrl = videoUrl ?: playList.getOrNull(currentEpisodeIndex) ?: return@LaunchedEffect
-    if (currentPosition == 0L) {
+    if (initPosition == 0L) {
       exoPlayer.setMediaItem(MediaItem.fromUri(newUrl))
     } else {
-      exoPlayer.seekTo(currentPosition)
+      exoPlayer.seekTo(initPosition)
     }
     exoPlayer.prepare()
     exoPlayer.playWhenReady = true
@@ -166,15 +185,16 @@ fun CapVideoPlayer(
       currentPosition = exoPlayer.currentPosition
       duration = exoPlayer.duration
       isPlaying = exoPlayer.isPlaying
-      playerViewModel.setCurrentPosition(currentPosition)
+      capPlayerViewModel.setCurrentPosition(currentPosition)
       sliderPosition = currentPosition.toFloat() / duration.toFloat()
       onPositionChange(currentPosition)
       onDurationChange(duration)
     }
   }
-  BackHandler(enabled = isLandscape()) {
+  BackHandler(enabled = isLandscape) {
     isLandscape = false
     onLeadingBackButtonTab()
+    onLandscapeChange(isLandscape)
     Orientation.forceOrientation(current, false)
   }/* ① 同步系统栏隐藏/显示 */
   LaunchedEffect(isLandscape) {
@@ -266,13 +286,14 @@ fun CapVideoPlayer(
       )
     ) {
       //头部：返回按钮+标题
-      AnimatedVisibility(visible = showVideoController) {
+      AnimatedVisibility(visible = showVideoController && showHeader) {
         Row(
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.SpaceBetween,
         ) {
           IconButton(onClick = {
             if (isLandscape) {
+              isLandscape = false
               Orientation.forceOrientation(current, false)
             } else {
               navController?.popBackStack()
@@ -288,33 +309,26 @@ fun CapVideoPlayer(
       //中间：
       Row(
         modifier = Modifier
-          .weight(1f)
-          /* ① 水平手势：进度微调 */
-          .pointerInput(Unit) {
+          .weight(1f)/* ① 水平手势：进度微调 */.pointerInput(Unit) {
             if (!isLandscape) {
               return@pointerInput
             }
-            detectHorizontalDragGestures(
-              onDragStart = {
-                showMediaPropertyChangeText = true
-                seekAccumulatePx = 0f          // 重置累计位移
-              },
-              onDragEnd = {
-                showMediaPropertyChangeText = false
-                // 换算成毫秒并跳转
-                val seekMs = (seekAccumulatePx / 80f * 1_000L).toLong()
-                val target = (exoPlayer.currentPosition + seekMs)
-                  .coerceIn(0L, exoPlayer.duration)
-                exoPlayer.seekTo(target)
-              }
-            ) { _, dragAmount ->
+            detectHorizontalDragGestures(onDragStart = {
+              showMediaPropertyChangeText = true
+              seekAccumulatePx = 0f          // 重置累计位移
+            }, onDragEnd = {
+              showMediaPropertyChangeText = false
+              // 换算成毫秒并跳转
+              val seekMs = (seekAccumulatePx / 80f * 1_000L).toLong()
+              val target = (exoPlayer.currentPosition + seekMs).coerceIn(0L, exoPlayer.duration)
+              exoPlayer.seekTo(target)
+            }) { _, dragAmount ->
               seekAccumulatePx += dragAmount        // 累计位移（右正左负）
               val seconds = (seekAccumulatePx / 80f).toInt()
               mediaPropertyChangeText =
                 if (seconds >= 0) "前进 ${seconds}s" else "后退 ${-seconds}s"
             }
-          }
-      ) {
+          }) {
         //左侧：左半部分垂直手势监听控制画面亮度
         Column(
           modifier = Modifier
@@ -363,28 +377,16 @@ fun CapVideoPlayer(
               ) { change, dragAmount ->
                 if (!isLandscape) return@detectVerticalDragGestures
                 val audioManager = current.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-
-                if (dragAmount < 0) {
-                  // 向上滑动，增大音量
-                  if (currentVolume < maxVolume) {
-                    audioManager.adjustStreamVolume(
-                      AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, 0
-                    )
-                    val volumePercent = ((currentVolume + 1) * 100 / maxVolume)
-                    mediaPropertyChangeText = "音量: ${volumePercent}%"
-                  }
-                } else {
-                  // 向下滑动，减小音量
-                  if (currentVolume > 0) {
-                    audioManager.adjustStreamVolume(
-                      AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, 0
-                    )
-                    val volumePercent = ((currentVolume - 1) * 100 / maxVolume)
-                    mediaPropertyChangeText = "音量: ${volumePercent}%"
-                  }
-                }
+                val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                // 当前音量百分比
+                val currentPercent =
+                  audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) * 100 / maxVol
+                // 每 4 像素 ≈ 1% 音量变化，可自行微调
+                val newPercent = (currentPercent - dragAmount / 4f).toInt().coerceIn(0, 100)
+                // 百分比 → 档位
+                val newVol = (newPercent * maxVol / 100f).toInt().coerceIn(0, maxVol)
+                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                mediaPropertyChangeText = "音量: ${newPercent}%"
               }
             }) {
           AnimatedVisibility(
@@ -478,6 +480,7 @@ fun CapVideoPlayer(
           AnimatedVisibility(visible = isLandscape() && showPreviousButton) {
             IconButton(onClick = {
               if (playList.isEmpty() || currentEpisodeIndex <= 0) {
+                onPreviousTab()
                 return@IconButton
               }
               exoPlayer.setMediaItem(MediaItem.fromUri(playList[currentEpisodeIndex - 1]))
@@ -490,7 +493,10 @@ fun CapVideoPlayer(
             }
           }
           //播放/暂停
-          IconButton(onClick = { exoPlayer.playWhenReady = !exoPlayer.isPlaying }) {
+          IconButton(onClick = {
+            onPlayPause(exoPlayer.isPlaying)
+            exoPlayer.playWhenReady = !exoPlayer.isPlaying
+          }) {
             Icon(
               imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
               contentDescription = "Play or Pause"
@@ -500,6 +506,7 @@ fun CapVideoPlayer(
           AnimatedVisibility(visible = isLandscape() && showNextButton) {
             IconButton(onClick = {
               if (playList.isEmpty() || currentEpisodeIndex >= playList.size - 1) {
+                onNextTab()
                 return@IconButton
               }
               exoPlayer.setMediaItem(MediaItem.fromUri(playList[currentEpisodeIndex + 1]))
@@ -513,20 +520,16 @@ fun CapVideoPlayer(
           }
           //当前时间/总时间
           Text(
-            text = "${formatTime(currentPosition)}/${
-              formatTime(
-                duration
-              )
-            }",
+            text = "${formatTime(currentPosition)}/${formatTime(duration)}",
             textAlign = TextAlign.Center,
-//          modifier = Modifier
-//            .background(Color.Yellow)
           )
           Spacer(modifier = Modifier.weight(1f))
 
+          //TODO 添加视频清晰度选择按钮 -2025-10-21
+
           //剧集选择按钮
           AnimatedVisibility(
-            visible = isLandscape
+            visible = isLandscape && playList.isNotEmpty()
           ) {
             Row {
               IconButton(
@@ -545,8 +548,7 @@ fun CapVideoPlayer(
               IconButton(
                 onClick = {
                   isAspectMenuOpen = !isAspectMenuOpen
-                },
-                modifier = Modifier
+                }, modifier = Modifier
                   .size(40.dp)
                   .padding(end = 8.dp)
               ) {
@@ -615,6 +617,7 @@ fun CapVideoPlayer(
           }
           IconButton(onClick = {
             isLandscape = !isLandscape
+            onLandscapeChange(isLandscape)
             Orientation.forceOrientation(current, isLandscape)
           }) {
             Icon(
@@ -624,32 +627,31 @@ fun CapVideoPlayer(
         }
       }
     }
-  }
-  // 媒体属性变更提示
-  AnimatedVisibility(
-    visible = showMediaPropertyChangeText && mediaPropertyChangeText.isNotEmpty() && isLandscape,   // 用变量控制显隐
-    enter = fadeIn(),
-    exit = fadeOut(),
-  ) {
-    Row(
-      modifier = Modifier.fillMaxWidth(),
-      horizontalArrangement = Arrangement.Center,
+    // 媒体属性变更提示
+    AnimatedVisibility(
+      visible = showMediaPropertyChangeText && mediaPropertyChangeText.isNotEmpty() && isLandscape,   // 用变量控制显隐
+      enter = fadeIn(), exit = fadeOut(), modifier = Modifier.zIndex(Float.MAX_VALUE)
     ) {
-      Text(
-        text = mediaPropertyChangeText,
-        textAlign = TextAlign.Center,
-        color = Color.White,
-        modifier = Modifier
-          .padding(top = 32.dp)
-          .background(
-            Color.Black.copy(alpha = 0.6f), shape = CircleShape
-          )
-          .padding(horizontal = 12.dp, vertical = 6.dp)
-      )
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+      ) {
+        Text(
+          text = mediaPropertyChangeText,
+          textAlign = TextAlign.Center,
+          color = Color.White,
+          modifier = Modifier
+            .padding(top = 32.dp)
+            .background(
+              Color.Black.copy(alpha = 0.6f), shape = CircleShape
+            )
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+        )
+      }
     }
   }
-}
 
+}
 
 @Composable
 fun isLandscape(): Boolean =

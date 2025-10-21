@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -20,26 +22,21 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -51,11 +48,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -88,7 +83,7 @@ fun PlaybackPage(
   var isLove by rememberSaveable { mutableStateOf(false) }
   var historyList by rememberSaveable { mutableStateOf<List<History>>(emptyList()) }/* 播放状态持久化 */
   var currentPosition by rememberSaveable { mutableLongStateOf(0L) }
-  var historyPosition by rememberSaveable { mutableLongStateOf(0L) }
+//  var historyPosition by rememberSaveable { mutableLongStateOf(0L) }
 
   var wasPlaying by rememberSaveable { mutableStateOf(true) }
 
@@ -102,8 +97,8 @@ fun PlaybackPage(
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
   val coroutineScope = rememberCoroutineScope()
   var isFullscreen by rememberSaveable { mutableStateOf(false) }
-  val sources = rememberSaveable { SourceUtil.getSourceWithDelay() }
-  /* 历史记录保存 */
+  val sources = rememberSaveable { SourceUtil.getSourceWithDelay() }/* 历史记录保存 */
+  val topInset = WindowInsets.systemBars.getTop(LocalDensity.current)
   DisposableEffect(Unit) {
     onDispose {
       val history = History(
@@ -123,7 +118,6 @@ fun PlaybackPage(
       val idx = list.indexOfFirst { it.subId == animeSubId }
       if (idx >= 0) list[idx] = history else list.add(history)
       LocalStorage.setList(content, "view:history", list)
-//      CapPlayerViewModel
     }
   }
 
@@ -166,48 +160,40 @@ fun PlaybackPage(
       isLoading = false
     }
   }
-  /* UI 开始 */
-  Scaffold(topBar = {
-    if (!isLandscape()) {
-      TopAppBar(
-        title = {
-          Text(
-            subject?.nameCn ?: subject?.name ?: "",
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-          )
-        },
-        navigationIcon = {
-          IconButton(onClick = { navController?.popBackStack() }) {
-            Icon(
-              Icons.Outlined.ArrowBackIosNew,
-              contentDescription = "back",
-            )
-          }
-        })
-    }
-  }, content = { innerPadding ->
-    Column(modifier = Modifier.padding(if (isLandscape()) PaddingValues(0.dp) else innerPadding)) {
+
+  Scaffold { innerPadding ->
+    Column(
+      modifier = Modifier
+        .padding(innerPadding)
+    ) {
       /* 播放器区域 */
       Row(
         modifier = Modifier
           .fillMaxWidth()
-          .aspectRatio(16f / 9f)
       ) {
-        if (isLoading || playInfo.currentEpisodeUrl == null) {
-          Box(modifier = Modifier.fillMaxSize()) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-          }
-        } else {
+        key(currentPlayingEpisodeIndex) {
+
           CapVideoPlayer(
-            videoUrl = playInfo.currentEpisodeUrl!!,
-            position = currentPosition,
-            activity = activity,
-            modifier = if (isLandscape()) Modifier.padding(horizontal = 50.dp) else Modifier.fillMaxSize(),
-            onProcessChange = {
+            videoUrl = playInfo.currentEpisodeUrl,
+            title = subject?.nameCn ?: subject?.name ?: "",
+            episodeIndex = currentPlayingEpisodeIndex,
+            showNextButton = false,
+            showPreviousButton = false,
+            navController = navController,
+            initPosition = currentPosition,
+            onPositionChange = {
               currentPosition = it
             },
+            onLeadingBackButtonTab = {
+              if (!isFullscreen) navController?.popBackStack()
+            },
+            onLandscapeChange = {
+              isFullscreen = it
+            },
+            onPlayerError = {
+              Toast.makeText(content, "播放出错: ${it.message}", Toast.LENGTH_SHORT).show()
+            }
+
           )
         }
       }
@@ -236,28 +222,25 @@ fun PlaybackPage(
             currentPlayingEpisodeId = newId
             try {
               coroutineScope.launch(Dispatchers.IO) {
+//                historyPosition = 0L
+
                 playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId)
+                currentPosition = 0L
               }
             } catch (e: Exception) {
-              isLoading = false
               Toast.makeText(
-                navController?.context,
-                "错误:${e.message}",
-                Toast.LENGTH_SHORT
+                navController?.context, "错误:${e.message}", Toast.LENGTH_SHORT
               ).show()
             } finally {
+              isLoading = false
             }
             currentPosition = 0L
           }
         }
       }
     }
-  })
+  }
 }
-
-@Composable
-fun isLandscape(): Boolean =
-  LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
 
 /* ====================== 简介页 ====================== */

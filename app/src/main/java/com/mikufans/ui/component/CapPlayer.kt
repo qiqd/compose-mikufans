@@ -53,7 +53,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import com.mikufans.ui.page.formatTime
-import com.mikufans.ui.page.isLandscape
 import com.mikufans.util.Orientation
 import com.mikufans.view.PlayerViewModel
 
@@ -115,7 +114,7 @@ fun CapVideoPlayer(
   }
   BackHandler(enabled = isLandscape()) {
     isFullscreen = false
-    Orientation().forceOrientation(content, false)
+    Orientation.forceOrientation(content, false)
   }
 
   /* ② 首次/历史进度：拿到总时长后一次性同步 progress */
