@@ -60,7 +60,7 @@ import com.mikufans.view.PlayerViewModel
 @OptIn(UnstableApi::class)
 @Composable
         /* ====================== 播放器 UI 壳 ====================== */
-fun CapPlayer(
+fun CapVideoPlayer(
 
   videoUrl: String,
   position: Long,
@@ -120,7 +120,10 @@ fun CapPlayer(
 
   /* ② 首次/历史进度：拿到总时长后一次性同步 progress */
   LaunchedEffect(total) {
-    Log.d("CapPlayer", "Total duration: $total, Current position: ${exoPlayer.currentPosition}")
+    Log.d(
+      "CapVideoPlayer",
+      "Total duration: $total, Current position: ${exoPlayer.currentPosition}"
+    )
     if (total > 0) {
       progress = exoPlayer.currentPosition.toFloat() / total
     }

@@ -1,4 +1,6 @@
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,13 +37,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Composable
-fun Weekly(navController: NavController) {
+fun Weekly(navController: NavController, activity: ComponentActivity) {
   val tabs = arrayOf("一", "二", "三", "四", "五", "六", "日")
   val coroutineScope = rememberCoroutineScope()
   var isLoading by rememberSaveable { mutableStateOf(false) }
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   var weekly by rememberSaveable { mutableStateOf(List<Schedule?>(7) { null }) }
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
+  BackHandler { activity.moveTaskToBack(true) }
   LaunchedEffect(Unit) {
     isLoading = true
     try {

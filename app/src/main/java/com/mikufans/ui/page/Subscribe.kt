@@ -1,5 +1,7 @@
 package com.mikufans.ui.page
 
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,7 +26,7 @@ import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.History
 
 @Composable
-fun Subscribe(navController: NavController) {
+fun Subscribe(navController: NavController, activity: ComponentActivity) {
   val anime = Anime()
   anime.coverUrl = "https://img.pan.kg/images/363957_pgptl.webp"
   anime.name = "夏日口袋"
@@ -37,6 +39,7 @@ fun Subscribe(navController: NavController) {
       LocalStorage.getList(content, "view:history", History::class.java)?.toList() ?: emptyList()
     historyList = historyList.sortedByDescending { it.time }
   }
+  BackHandler { activity.moveTaskToBack(true) }
   Column(
     modifier = Modifier.fillMaxSize(),
 //    verticalArrangement = Arrangement.Center,

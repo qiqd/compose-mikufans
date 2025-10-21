@@ -6,10 +6,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -87,30 +86,32 @@ fun MainScreen(activity: ComponentActivity) {
   }
   val showNavigationBar = screens.any { it.route == currentDestination }
   val minePageItem = arrayOf(
-    Navigation.HISTORY,
-    Navigation.ABOUT
+    Navigation.HISTORY, Navigation.ABOUT
   )
   Scaffold(
     topBar = {
-      AnimatedVisibility(visible = showNavigationBar, enter = fadeIn(), exit = fadeOut()) {
+      AnimatedVisibility(
+        visible = showNavigationBar,
+        enter = slideInVertically(initialOffsetY = { -it }),
+        exit = slideOutVertically(targetOffsetY = { -it })
+      ) {
         TopAppBar(
           title = { Text(title) },
         )
       }
     },
     bottomBar = {
-      AnimatedVisibility(visible = showNavigationBar, enter = fadeIn(), exit = fadeOut()) {
-        NavigationBar(
-//          modifier = Modifier.height(100.dp)
-        ) {
+      AnimatedVisibility(
+        visible = showNavigationBar,
+        enter = slideInVertically(initialOffsetY = { it }),
+        exit = slideOutVertically(targetOffsetY = { it })
+      ) {
+        NavigationBar {
           screens.forEach { screen ->
             NavigationBarItem(
               icon = { Icon(screen.icon, contentDescription = screen.title) },
               selected = currentDestination == screen.route,
               colors = NavigationBarItemDefaults.colors(
-//                selectedIconColor = MaterialTheme.colorScheme.primary,
-//                unselectedIconColor = MaterialTheme.colorScheme.tertiary,
-//                indicatorColor = MaterialTheme.colorScheme.tertiary,
               ),
               onClick = {
                 navController.navigate(screen.route) {
@@ -126,46 +127,45 @@ fun MainScreen(activity: ComponentActivity) {
       }
     },
   ) { innerPadding ->
-    NavHost(
-      enterTransition = { if (currentDestination !in minePageItem) fadeIn() else EnterTransition.None },
-      exitTransition = { if (currentDestination !in minePageItem) fadeOut() else ExitTransition.None },
-      navController = navController,
-      startDestination = BottomNavigationItem.Index.route,
-      modifier = Modifier.padding(if (showNavigationBar) innerPadding else PaddingValues(0.dp))
+    Box(modifier = Modifier.padding(if (showNavigationBar) innerPadding else PaddingValues(0.dp))) {
+      NavHost(
+        navController = navController,
+        startDestination = BottomNavigationItem.Index.route,
+      ) {
+        composable(BottomNavigationItem.Index.route) { Index(navController, activity) }
+        composable(BottomNavigationItem.Weekly.route) { Weekly(navController, activity) }
+        composable(BottomNavigationItem.Subscribe.route) { Subscribe(navController, activity) }
+        composable(
+          route = BottomNavigationItem.Me.route,
+//        enterTransition = { if (showNavigationBar) fadeIn() else EnterTransition.None },
+//        exitTransition = { if (showNavigationBar) fadeOut() else ExitTransition.None }
+        ) { Me(navController, activity) }
+        composable(Navigation.ANIME_DETAIL + "/{animeId}/{animeSubId}/{animeName}") { backStackEntry ->
+          var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
+          animeId = URLDecoder.decode(animeId, "UTF-8")
+          val animeName = backStackEntry.arguments?.getString("animeName") ?: ""
+          val animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
+          AnimeDetail(animeId, animeSubId.toInt(), animeName, navController)
+        }
+        composable(Navigation.ANIME_PLAYER + "/{animeId}/{animeSubId}/{episodes}") { backStackEntry ->
+          var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
+          animeId = URLDecoder.decode(animeId, "UTF-8")
+          var episodes = backStackEntry.arguments?.getString("episodes") ?: ""
+          val animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
+          episodes = URLDecoder.decode(episodes, "UTF-8")
 
-    ) {
-      composable(BottomNavigationItem.Index.route) { Index(navController) }
-      composable(BottomNavigationItem.Weekly.route) { Weekly(navController) }
-      composable(BottomNavigationItem.Subscribe.route) { Subscribe(navController) }
-      composable(
-        route = BottomNavigationItem.Me.route,
-        enterTransition = { if (showNavigationBar) fadeIn() else EnterTransition.None },
-        exitTransition = { if (showNavigationBar) fadeOut() else ExitTransition.None }
-      ) { Me(navController) }
-      composable(Navigation.ANIME_DETAIL + "/{animeId}/{animeSubId}/{animeName}") { backStackEntry ->
-        var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
-        animeId = URLDecoder.decode(animeId, "UTF-8")
-        val animeName = backStackEntry.arguments?.getString("animeName") ?: ""
-        val animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
-        AnimeDetail(animeId, animeSubId.toInt(), animeName, navController)
-      }
-      composable(Navigation.ANIME_PLAYER + "/{animeId}/{animeSubId}/{episodes}") { backStackEntry ->
-        var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
-        animeId = URLDecoder.decode(animeId, "UTF-8")
-        var episodes = backStackEntry.arguments?.getString("episodes") ?: ""
-        val animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
-        episodes = URLDecoder.decode(episodes, "UTF-8")
-
-        val source = JSON.parseArray(episodes, Episode::class.java)
-        Player(animeId, animeSubId, navController, source, activity)
-      }
-      composable(route = Navigation.HISTORY) { HistoryRecord(navController) }
-      composable(route = Navigation.ABOUT) { About(navController) }
-      composable(route = Navigation.FULL_SEARCH + "/{keyword}") { backStackEntry ->
-        val keyword = backStackEntry.arguments?.getString("keyword") ?: ""
-        FullSearch(keyword, navController)
+          val source = JSON.parseArray(episodes, Episode::class.java)
+          Player(animeId, animeSubId, navController, source, activity)
+        }
+        composable(route = Navigation.HISTORY) { HistoryRecord(navController) }
+        composable(route = Navigation.ABOUT) { About(navController) }
+        composable(route = Navigation.FULL_SEARCH + "/{keyword}") { backStackEntry ->
+          val keyword = backStackEntry.arguments?.getString("keyword") ?: ""
+          FullSearch(keyword, navController)
+        }
       }
     }
+
   }
 }
 

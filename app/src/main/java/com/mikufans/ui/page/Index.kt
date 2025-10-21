@@ -2,6 +2,8 @@ package com.mikufans.ui.page
 
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,7 +57,7 @@ import okio.IOException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Index(navController: NavController) {
+fun Index(navController: NavController, activity: ComponentActivity) {
   var keyword by rememberSaveable { mutableStateOf("") }
   var searchResult by rememberSaveable {
     mutableStateOf<List<Anime>>(emptyList())
@@ -67,7 +69,7 @@ fun Index(navController: NavController) {
   var sources by rememberSaveable { mutableStateOf(emptyList<WebsiteDelay>()) }
   var isRefreshing by rememberSaveable { mutableStateOf(false) }
   val pullToRefreshState = rememberPullToRefreshState()
-
+  BackHandler { activity.moveTaskToBack(true) }
   LaunchedEffect(Unit) {
     if (sources.isNotEmpty()) return@LaunchedEffect
     Toast.makeText(navController.context, "初始化资源中", Toast.LENGTH_SHORT).show()

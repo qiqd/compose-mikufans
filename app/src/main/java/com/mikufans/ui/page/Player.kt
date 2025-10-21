@@ -60,7 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.mikufans.R
-import com.mikufans.ui.component.CapPlayer
+import com.mikufans.ui.component.CapVideoPlayer
 import com.mikufans.util.GifLoader
 import com.mikufans.util.LocalStorage
 import com.mikufans.xmd.miku.entiry.Anime
@@ -123,7 +123,7 @@ fun Player(
       val idx = list.indexOfFirst { it.subId == animeSubId }
       if (idx >= 0) list[idx] = history else list.add(history)
       LocalStorage.setList(content, "view:history", list)
-//      PlayerViewModel
+//      CapPlayerViewModel
     }
   }
 
@@ -200,7 +200,7 @@ fun Player(
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
           }
         } else {
-          CapPlayer(
+          CapVideoPlayer(
             videoUrl = playInfo.currentEpisodeUrl!!,
             position = currentPosition,
             activity = activity,
