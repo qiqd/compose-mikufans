@@ -9,12 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -49,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -83,10 +80,6 @@ fun PlaybackPage(
   var isLove by rememberSaveable { mutableStateOf(false) }
   var historyList by rememberSaveable { mutableStateOf<List<History>>(emptyList()) }/* 播放状态持久化 */
   var currentPosition by rememberSaveable { mutableLongStateOf(0L) }
-//  var historyPosition by rememberSaveable { mutableLongStateOf(0L) }
-
-  var wasPlaying by rememberSaveable { mutableStateOf(true) }
-
   var currentPlayingEpisodeIndex by rememberSaveable { mutableIntStateOf(0) }
   var currentPlayingEpisodeId by rememberSaveable { mutableStateOf(episodeList[0].id) }
   var isLoading by rememberSaveable { mutableStateOf(false) }
@@ -98,7 +91,6 @@ fun PlaybackPage(
   val coroutineScope = rememberCoroutineScope()
   var isFullscreen by rememberSaveable { mutableStateOf(false) }
   val sources = rememberSaveable { SourceUtil.getSourceWithDelay() }/* 历史记录保存 */
-  val topInset = WindowInsets.systemBars.getTop(LocalDensity.current)
   DisposableEffect(Unit) {
     onDispose {
       val history = History(
@@ -144,10 +136,15 @@ fun PlaybackPage(
         playInfo = tempPlayInfo
         isLove = historyList[idx].isLove
       } else {
-        coroutineScope.launch(Dispatchers.IO) {
-          playInfo.currentEpisodeUrl ?: let {
-//            playInfo = GiligiliAccessPoint().getVideoUrl(currentPlayingEpisodeId)
-            playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId)
+        try {
+          coroutineScope.launch(Dispatchers.IO) {
+            playInfo.currentEpisodeUrl ?: let {
+              playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId)
+            }
+          }
+        } catch (e: Exception) {
+          launch(Dispatchers.Main) {
+            Toast.makeText(content, "加载数据失败: ${e.message}", Toast.LENGTH_SHORT).show()
           }
         }
       }
@@ -163,13 +160,11 @@ fun PlaybackPage(
 
   Scaffold { innerPadding ->
     Column(
-      modifier = Modifier
-        .padding(innerPadding)
+      modifier = Modifier.padding(innerPadding)
     ) {
       /* 播放器区域 */
       Row(
-        modifier = Modifier
-          .fillMaxWidth()
+        modifier = Modifier.fillMaxWidth()
       ) {
         key(currentPlayingEpisodeIndex) {
 

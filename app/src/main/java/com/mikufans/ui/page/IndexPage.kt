@@ -21,9 +21,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -57,11 +59,13 @@ import okio.IOException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun IndexPage(navController: NavController, activity: ComponentActivity) {
+fun IndexPage(
+  navController: NavController,
+  activity: ComponentActivity,
+  innerPadding1: PaddingValues,
+) {
   var keyword by rememberSaveable { mutableStateOf("") }
-  var searchResult by rememberSaveable {
-    mutableStateOf<List<Anime>>(emptyList())
-  }
+  var searchResult by rememberSaveable { mutableStateOf<List<Anime>>(emptyList()) }
   var isLoading by rememberSaveable { mutableStateOf(false) }
   val focusManager = LocalFocusManager.current
   val coroutineScope = rememberCoroutineScope()
@@ -117,116 +121,127 @@ fun IndexPage(navController: NavController, activity: ComponentActivity) {
       }
     }
   }
+  Scaffold(
+    topBar = {
+      TopAppBar(
+        title = { Text("首页") },
+      )
+    },
+  ) { innerPadding ->
 
-  Column(modifier = Modifier.padding(horizontal = 8.dp)) {
-    TextField(
+    Column(
       modifier = Modifier
-        .fillMaxWidth()
-        .clip(shape = ShapeDefaults.Small),
-      value = keyword,
-      onValueChange = { keyword = it },
-      keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-      placeholder = { Text("请输入关键字") },
-      maxLines = 1,
-      leadingIcon = {
-        Icon(imageVector = Icons.Default.Search, contentDescription = "搜索")
-      },
-      keyboardActions = KeyboardActions(
-        onSearch = {
-          if (sources.isEmpty()) {
-            Toast.makeText(navController.context, "初始化资源中，请稍后...", Toast.LENGTH_SHORT)
-              .show()
-            return@KeyboardActions
-          }
-          Log.i("IndexPage-Search", keyword)
+        .padding(innerPadding)
+    ) {
+      TextField(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clip(shape = ShapeDefaults.Small),
+        value = keyword,
+        onValueChange = { keyword = it },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        placeholder = { Text("请输入关键字") },
+        maxLines = 1,
+        leadingIcon = {
+          Icon(imageVector = Icons.Default.Search, contentDescription = "搜索")
+        },
+        keyboardActions = KeyboardActions(
+          onSearch = {
+            if (sources.isEmpty()) {
+              Toast.makeText(navController.context, "初始化资源中，请稍后...", Toast.LENGTH_SHORT)
+                .show()
+              return@KeyboardActions
+            }
+            Log.i("IndexPage-Search", keyword)
+            coroutineScope.launch(Dispatchers.IO) {
+              try {
+                isLoading = true
+//              val search = sources[0].service.getSearchResult(keyword, 1, 20)
+                val anime = RedDrillBit().fetchSearchResult(keyword, 1, 10)
+                val result = anime ?: emptyList()
+                withContext(Dispatchers.Main) {
+                  searchResult = result
+                }
+              } catch (e: Exception) {
+                // 处理错误
+                withContext(Dispatchers.Main) {
+                  searchResult = emptyList()
+                }
+                Log.e("IndexPage-Search", "搜索失败", e)
+                withContext(Dispatchers.Main) {
+                  Toast.makeText(
+                    navController.context,
+                    "搜索失败:${e.message}",
+                    Toast.LENGTH_SHORT
+                  ).show()
+                }
+              } finally {
+                withContext(Dispatchers.Main) {
+                  isLoading = false
+                }
+              }
+            }
+            focusManager.clearFocus()
+          }),
+      )
+      // 添加加载指示器
+      if (isLoading) {
+        Box(
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp), contentAlignment = Alignment.Center
+        ) {
+          CircularProgressIndicator()
+        }
+      }
+
+      PullToRefreshBox(
+        state = pullToRefreshState,
+        isRefreshing = isRefreshing,
+        indicator = {
+          Indicator(
+            modifier = Modifier.align(Alignment.TopCenter),
+            isRefreshing = isRefreshing,
+            color = MaterialTheme.colorScheme.primary,
+            state = pullToRefreshState
+          )
+        },
+        onRefresh = {
           coroutineScope.launch(Dispatchers.IO) {
             try {
-              isLoading = true
-//              val search = sources[0].service.getSearchResult(keyword, 1, 20)
-              val anime = RedDrillBit().fetchSearchResult(keyword, 1, 10)
-              val result = anime ?: emptyList()
-              withContext(Dispatchers.Main) {
-                searchResult = result
+              isRefreshing = true
+              while (SourceUtil.getSourceWithDelay().isEmpty()) {
+                SourceUtil.initSources()
               }
+              delay(2000L)
             } catch (e: Exception) {
-              // 处理错误
-              withContext(Dispatchers.Main) {
-                searchResult = emptyList()
-              }
-              Log.e("IndexPage-Search", "搜索失败", e)
-              withContext(Dispatchers.Main) {
-                Toast.makeText(
-                  navController.context,
-                  "搜索失败:${e.message}",
-                  Toast.LENGTH_SHORT
-                ).show()
-              }
+              // 错误处理
+              Log.e("IndexPage-Refresh", "刷新失败", e)
             } finally {
-              withContext(Dispatchers.Main) {
-                isLoading = false
-              }
+              isRefreshing = false
             }
           }
-          focusManager.clearFocus()
-        }),
-    )
-    // 添加加载指示器
-    if (isLoading) {
-      Box(
-        modifier = Modifier
-          .fillMaxSize()
-          .padding(16.dp), contentAlignment = Alignment.Center
+        }
       ) {
-        CircularProgressIndicator()
-      }
-    }
-
-    PullToRefreshBox(
-      state = pullToRefreshState,
-      isRefreshing = isRefreshing,
-      indicator = {
-        Indicator(
-          modifier = Modifier.align(Alignment.TopCenter),
-          isRefreshing = isRefreshing,
-          color = MaterialTheme.colorScheme.primary,
-          state = pullToRefreshState
-        )
-      },
-      onRefresh = {
-        coroutineScope.launch(Dispatchers.IO) {
-          try {
-            isRefreshing = true
-            while (SourceUtil.getSourceWithDelay().isEmpty()) {
-              SourceUtil.initSources()
+        LazyColumn(
+          state = lazyGridState,
+          contentPadding = PaddingValues(vertical = 5.dp),
+          verticalArrangement = Arrangement.spacedBy(5.dp),
+          modifier = Modifier
+            .fillMaxSize()
+        ) {
+          items(searchResult.size) { index ->
+            AnimeCard(anime = searchResult[index]) { animeId, animeName ->
+              Navigation.navigateToAnimeDetail(
+                navController = navController,
+                animeSubId = animeId.toString(),
+                animeName = animeName,
+              )
             }
-            delay(2000L)
-          } catch (e: Exception) {
-            // 错误处理
-            Log.e("IndexPage-Refresh", "刷新失败", e)
-          } finally {
-            isRefreshing = false
           }
         }
       }
-    ) {
-      LazyColumn(
-        state = lazyGridState,
-        contentPadding = PaddingValues(vertical = 5.dp),
-        verticalArrangement = Arrangement.spacedBy(5.dp),
-        modifier = Modifier
-          .fillMaxSize()
-      ) {
-        items(searchResult.size) { index ->
-          AnimeCard(anime = searchResult[index]) { animeId, animeName ->
-            Navigation.navigateToAnimeDetail(
-              navController = navController,
-              animeSubId = animeId.toString(),
-              animeName = animeName,
-            )
-          }
-        }
-      }
-    }
 
+    }
   }
 }

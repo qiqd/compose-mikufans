@@ -12,9 +12,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -36,8 +39,12 @@ import com.mikufans.xmd.teto.service.impl.RedDrillBit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WeeklyPage(navController: NavController, activity: ComponentActivity) {
+fun WeeklyPage(
+  navController: NavController,
+  activity: ComponentActivity,
+) {
   val tabs = arrayOf("一", "二", "三", "四", "五", "六", "日")
   val coroutineScope = rememberCoroutineScope()
   var isLoading by rememberSaveable { mutableStateOf(false) }
@@ -63,24 +70,29 @@ fun WeeklyPage(navController: NavController, activity: ComponentActivity) {
     }
 
   }
-  Column(modifier = Modifier.padding(horizontal = 8.dp)) {
-    TabRow(selectedTabIndex = tabIndex.value) {
-      tabs.forEachIndexed { index, title ->
-        Tab(text = { Text(title) }, selected = tabIndex.value == index, onClick = {
-          coroutineScope.launch {
-            pagerState.animateScrollToPage(index)
-          }
-        })
+  Scaffold(topBar = { TopAppBar(title = { Text("周更表") }) }) { innerPadding ->
+    Column(
+      modifier = Modifier
+        .padding(innerPadding)
+    ) {
+      TabRow(selectedTabIndex = tabIndex.value) {
+        tabs.forEachIndexed { index, title ->
+          Tab(text = { Text(title) }, selected = tabIndex.value == index, onClick = {
+            coroutineScope.launch {
+              pagerState.animateScrollToPage(index)
+            }
+          })
+        }
       }
-    }
-    HorizontalPager(
-      state = pagerState, modifier = Modifier.fillMaxSize()
-    ) { page ->
-      if (isLoading) {
-        CircularProgressIndicator()
-      }
-      WeeklyPageContent(weekDay = weekly[page]?.anime, navController)
+      HorizontalPager(
+        state = pagerState, modifier = Modifier.fillMaxSize()
+      ) { page ->
+        if (isLoading) {
+          CircularProgressIndicator()
+        }
+        WeeklyPageContent(weekDay = weekly[page]?.anime, navController)
 
+      }
     }
   }
 }

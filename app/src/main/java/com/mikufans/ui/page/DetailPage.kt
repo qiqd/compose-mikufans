@@ -155,8 +155,8 @@ private fun AnimeDetailContent(
 ) {
   LazyColumn(
     modifier = Modifier
-      .fillMaxSize()
-      .padding(16.dp),
+      .fillMaxSize(),
+//      .padding(16.dp),
     verticalArrangement = Arrangement.spacedBy(16.dp)
   ) {
     /* 封面与基本信息 */

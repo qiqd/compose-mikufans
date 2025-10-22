@@ -4,7 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
 import android.media.AudioManager
+import android.provider.Settings
 import android.util.Log
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -347,15 +349,27 @@ fun CapVideoPlayer(
               ) { change, dragAmount ->
                 if (!isLandscape) return@detectVerticalDragGestures
                 // 监听 Y 轴滑动事件，实现调整亮度功能
-                val delta = dragAmount / 1000f
                 val attrs = window.attributes
-                val old = attrs.screenBrightness
+                val old = when (attrs.screenBrightness) {
+                  // 首次为 -1，用系统亮度（0~1）代替
+                  WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE -> {
+                    // 0~255 → 0~1
+                    Settings.System.getInt(
+                      current.contentResolver,
+                      Settings.System.SCREEN_BRIGHTNESS
+                    ) / 255f
+                  }
+
+                  else -> attrs.screenBrightness
+                }.coerceIn(0.05f, 1f)   // 保底限幅
+                val delta = dragAmount / 1000f
                 val new = (old - delta).coerceIn(0.05f, 1.0f)
-                Log.d("Gesture-brightness-newValue-oldValue", "Drag: $delta, old: $old, new: $new")
-                attrs.screenBrightness = new          // ① 设置新值
-                window.attributes = attrs               // ② 重新写回，立即生效
+                Log.d("Gesture-brightness", "old=$old new=$new")
+                attrs.screenBrightness = new
+                window.attributes = attrs
                 val brightnessPercent = (new * 100).toInt()
                 mediaPropertyChangeText = "亮度: ${brightnessPercent}%"
+
               }
             }) {}
         //右侧：右半部分控制音量
@@ -363,7 +377,6 @@ fun CapVideoPlayer(
           modifier = Modifier
             .weight(1f)
             .fillMaxSize()
-//            .background(Color.Yellow.copy(alpha = 0.5f))
             .pointerInput(Unit) {
               detectVerticalDragGestures(
                 onDragStart = {
@@ -377,16 +390,24 @@ fun CapVideoPlayer(
               ) { change, dragAmount ->
                 if (!isLandscape) return@detectVerticalDragGestures
                 val audioManager = current.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                // 当前音量百分比
-                val currentPercent =
-                  audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) * 100 / maxVol
-                // 每 4 像素 ≈ 1% 音量变化，可自行微调
-                val newPercent = (currentPercent - dragAmount / 4f).toInt().coerceIn(0, 100)
-                // 百分比 → 档位
-                val newVol = (newPercent * maxVol / 100f).toInt().coerceIn(0, maxVol)
-                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                mediaPropertyChangeText = "音量: ${newPercent}%"
+                if (dragAmount > 0) {
+                  audioManager.adjustStreamVolume(
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.ADJUST_RAISE,
+                    0
+                  )
+                } else {
+                  audioManager.adjustStreamVolume(
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.ADJUST_LOWER,
+                    0
+                  )
+                }
+                val maxVolume =
+                  audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceIn(1, 100)
+                val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                val volumePercent = (currentVolume.toFloat() / maxVolume * 100).toInt()
+                mediaPropertyChangeText = "音量: ${volumePercent}%"
               }
             }) {
           AnimatedVisibility(
@@ -563,7 +584,7 @@ fun CapVideoPlayer(
                   resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
                   isAspectMenuOpen = false
                 })
-                DropdownMenuItem(text = { Text("4/3") }, onClick = {
+                DropdownMenuItem(text = { Text("4:3") }, onClick = {
                   resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT
                   isAspectMenuOpen = false
                 })
