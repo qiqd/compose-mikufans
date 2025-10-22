@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
@@ -62,7 +63,7 @@ import okio.IOException
 fun IndexPage(
   navController: NavController,
   activity: ComponentActivity,
-  innerPadding1: PaddingValues,
+  baseHorizontalPadding: Dp,
 ) {
   var keyword by rememberSaveable { mutableStateOf("") }
   var searchResult by rememberSaveable { mutableStateOf<List<Anime>>(emptyList()) }
@@ -122,6 +123,7 @@ fun IndexPage(
     }
   }
   Scaffold(
+    modifier = Modifier.padding(horizontal = baseHorizontalPadding),
     topBar = {
       TopAppBar(
         title = { Text("首页") },

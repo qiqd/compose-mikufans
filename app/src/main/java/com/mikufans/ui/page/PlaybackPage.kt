@@ -136,14 +136,14 @@ fun PlaybackPage(
         playInfo = tempPlayInfo
         isLove = historyList[idx].isLove
       } else {
-        try {
-          coroutineScope.launch(Dispatchers.IO) {
+
+        coroutineScope.launch(Dispatchers.IO) {
+          try {
             playInfo.currentEpisodeUrl ?: let {
               playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId)
             }
-          }
-        } catch (e: Exception) {
-          launch(Dispatchers.Main) {
+          } catch (e: Exception) {
+            Log.e("player.error", e.toString())
             Toast.makeText(content, "加载数据失败: ${e.message}", Toast.LENGTH_SHORT).show()
           }
         }
@@ -151,7 +151,7 @@ fun PlaybackPage(
     } catch (e: Exception) {
       Log.e("player.error", e.toString())
       launch(Dispatchers.Main) {
-        Toast.makeText(content, "加载数据失败", Toast.LENGTH_SHORT).show()
+        Toast.makeText(content, "加载数据失败: ${e.message}", Toast.LENGTH_SHORT).show()
       }
     } finally {
       isLoading = false
@@ -270,7 +270,7 @@ fun AnimeInfoPage(
               style = MaterialTheme.typography.titleLarge,
               fontWeight = FontWeight.Bold
             )
-            anime.date?.let {
+            anime.ariDate?.let {
               Text(
                 text = "发行日期: $it",
                 style = MaterialTheme.typography.bodyMedium,

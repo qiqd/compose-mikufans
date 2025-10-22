@@ -15,4 +15,6 @@ public interface DiscoveryService {
     List<Schedule> fetchWeeklyUpdate() throws Exception;
 
     EpisodeResult fetchEpisode(String subjectId) throws Exception;
+
+    Anime fetchSubject(Integer subjectId) throws Exception;
 }

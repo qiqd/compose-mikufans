@@ -29,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
@@ -44,6 +45,7 @@ import kotlinx.coroutines.launch
 fun WeeklyPage(
   navController: NavController,
   activity: ComponentActivity,
+  baseHorizontalPadding: Dp,
 ) {
   val tabs = arrayOf("一", "二", "三", "四", "五", "六", "日")
   val coroutineScope = rememberCoroutineScope()
@@ -70,7 +72,9 @@ fun WeeklyPage(
     }
 
   }
-  Scaffold(topBar = { TopAppBar(title = { Text("周更表") }) }) { innerPadding ->
+  Scaffold(
+    modifier = Modifier.padding(horizontal = baseHorizontalPadding),
+    topBar = { TopAppBar(title = { Text("周更表") }) }) { innerPadding ->
     Column(
       modifier = Modifier
         .padding(innerPadding)

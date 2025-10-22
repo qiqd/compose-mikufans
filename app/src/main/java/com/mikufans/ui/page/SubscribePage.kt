@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
@@ -34,7 +35,8 @@ import com.mikufans.xmd.miku.entiry.History
 @Composable
 fun SubscribePage(
   navController: NavController,
-  activity: ComponentActivity
+  activity: ComponentActivity,
+  baseHorizontalPadding: Dp
 ) {
   val anime = Anime()
   anime.coverUrl = "https://img.pan.kg/images/363957_pgptl.webp"
@@ -50,6 +52,7 @@ fun SubscribePage(
   }
   BackHandler { activity.moveTaskToBack(true) }
   Scaffold(
+    modifier = Modifier.padding(horizontal = baseHorizontalPadding),
     topBar = { TopAppBar(title = { Text("追番") }) },
   ) { innerPadding ->
     Column(

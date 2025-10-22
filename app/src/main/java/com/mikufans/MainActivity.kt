@@ -71,6 +71,7 @@ fun MainScreen(activity: ComponentActivity) {
   val navController = rememberNavController()
   val navBackStackEntry by navController.currentBackStackEntryAsState()
   val currentDestination = navBackStackEntry?.destination?.route
+  val baseHorizontalPadding = 8.dp
   val screens = listOf(
     BottomNavigationItem.Index,
     BottomNavigationItem.Weekly,
@@ -122,8 +123,7 @@ fun MainScreen(activity: ComponentActivity) {
           if (showNavigationBar) PaddingValues(bottom = innerPadding.calculateBottomPadding() / 2) else PaddingValues(
             0.dp
           )
-        )
-        .padding(horizontal = 8.dp),
+        ),
       navController = navController,
       startDestination = BottomNavigationItem.Index.route,
     ) {
@@ -131,25 +131,28 @@ fun MainScreen(activity: ComponentActivity) {
         IndexPage(
           navController,
           activity,
-          innerPadding
+          baseHorizontalPadding,
         )
       }
       composable(BottomNavigationItem.Weekly.route) {
         WeeklyPage(
           navController,
           activity,
+          baseHorizontalPadding,
         )
       }
       composable(BottomNavigationItem.Subscribe.route) {
         SubscribePage(
           navController,
           activity,
+          baseHorizontalPadding,
         )
       }
       composable(route = BottomNavigationItem.Me.route) {
         MinePage(
           navController,
           activity,
+          baseHorizontalPadding,
         )
       }
       composable(Navigation.ANIME_DETAIL + "/{animeId}/{animeSubId}/{animeName}") { backStackEntry ->
@@ -157,7 +160,7 @@ fun MainScreen(activity: ComponentActivity) {
         animeId = URLDecoder.decode(animeId, "UTF-8")
         val animeName = backStackEntry.arguments?.getString("animeName") ?: ""
         val animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
-        DetailPage(animeId, animeSubId.toInt(), animeName, navController)
+        DetailPage(animeId, animeSubId.toInt(), animeName, navController, baseHorizontalPadding)
       }
       composable(Navigation.ANIME_PLAYER + "/{animeId}/{animeSubId}/{episodes}") { backStackEntry ->
         var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
@@ -169,8 +172,8 @@ fun MainScreen(activity: ComponentActivity) {
         val source = JSON.parseArray(episodes, Episode::class.java)
         PlaybackPage(animeId, animeSubId, navController, source, activity)
       }
-      composable(route = Navigation.HISTORY) { HistoryPage(navController) }
-      composable(route = Navigation.ABOUT) { AboutPage(navController) }
+      composable(route = Navigation.HISTORY) { HistoryPage(navController, baseHorizontalPadding) }
+      composable(route = Navigation.ABOUT) { AboutPage(navController, baseHorizontalPadding) }
       composable(route = Navigation.FULL_SEARCH + "/{keyword}") { backStackEntry ->
         val keyword = backStackEntry.arguments?.getString("keyword") ?: ""
         FullSearch(keyword, navController)

@@ -34,13 +34,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AboutPage(navController: NavController?) {
+fun AboutPage(navController: NavController?, baseHorizontalPadding: Dp) {
   val context = LocalContext.current
 
   // 库名 + 协议链接
@@ -59,6 +60,7 @@ fun AboutPage(navController: NavController?) {
 //    "Giligili 源（仅供测试）" to "https://github.com/xxx/giligili",   // 换成真实 ToS 或仓库
   )
   Scaffold(
+    modifier = Modifier.padding(horizontal = baseHorizontalPadding),
     topBar = {
       TopAppBar(title = { Text("关于") }, navigationIcon = {
         IconButton(onClick = { navController?.popBackStack() }) {

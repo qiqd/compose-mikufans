@@ -153,7 +153,7 @@ public class AAFun implements HtmlParser, Serializable {
                 String year = yearText.replaceAll("\\D+", "");
                 if (!year.isEmpty()) {
                     try {
-                        anime.setDate((year));
+                        anime.setAriDate(year);
                     } catch (NumberFormatException e) {
                         Log.e("解析年份失败: {}", yearText);
                     }

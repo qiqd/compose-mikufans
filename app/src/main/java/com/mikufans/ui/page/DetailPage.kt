@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -16,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material3.Card
@@ -25,10 +28,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,14 +44,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.alibaba.fastjson.JSON
 import com.mikufans.R
+import com.mikufans.ui.component.EmptyCompose
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.GifLoader
 import com.mikufans.xmd.miku.entiry.Anime
@@ -53,6 +62,7 @@ import com.mikufans.xmd.miku.entiry.AnimeDetail
 import com.mikufans.xmd.teto.service.impl.RedDrillBit
 import com.mikufans.xmd.util.SourceUtil
 import com.mikufans.xmd.util.StringMatchUtil
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
@@ -63,7 +73,8 @@ fun DetailPage(
   animeId: String = "",
   animeSubId: Int,
   animeName: String,
-  navController: NavController
+  navController: NavController,
+  baseHorizontalPadding: Dp
 ) {
   val context = LocalContext.current
   var subject by rememberSaveable { mutableStateOf<Anime?>(null) }
@@ -106,12 +117,13 @@ fun DetailPage(
   }
 
   Scaffold(
+    modifier = Modifier.padding(horizontal = baseHorizontalPadding),
     topBar = {
       TopAppBar(
-        title = { Text("动漫详情") },
+        title = { Text("详情") },
         navigationIcon = {
           IconButton(onClick = { navController.popBackStack() }) {
-            Icon(imageVector = Icons.Rounded.ArrowBackIosNew, contentDescription = "返回")
+            Icon(imageVector = Icons.Rounded.ArrowBackIosNew, contentDescription = "back")
           }
         }
       )
@@ -126,6 +138,7 @@ fun DetailPage(
           ) { CircularProgressIndicator() }
 
           subject != null -> AnimeDetailContent(
+            coroutineScope,
             id,
             subject!!,
             animeDetail,
@@ -147,22 +160,150 @@ fun DetailPage(
 /* 3. 头部+简介改用 Subject */
 @Composable
 private fun AnimeDetailContent(
+  coroutineScope: CoroutineScope,
   animeId: String,
   subject: Anime,
   animeDetail: AnimeDetail?,
   navController: NavController,
   isLoadLine: Boolean
 ) {
+
+  val tabs = arrayOf("路线", "简介", "角色", "制作信息")
+//  val coroutineScope = rememberCoroutineScope()
+  val pagerState = rememberPagerState(pageCount = { tabs.size })
+  val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
+  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(modifier = Modifier.fillMaxWidth()) { AnimeHeader(subject) }
+    Column(
+      modifier = Modifier
+        .weight(1f)
+        .fillMaxSize()
+    ) {
+      TabRow(selectedTabIndex = tabIndex.value) {
+        tabs.forEachIndexed { index, title ->
+          Tab(
+            text = { Text(title) },
+            selected = tabIndex.value == index,
+            onClick = {
+              coroutineScope.launch {
+                pagerState.animateScrollToPage(index)
+              }
+            }
+          )
+        }
+      }
+      HorizontalPager(
+        state = pagerState,
+        verticalAlignment = Alignment.Top,
+        contentPadding = PaddingValues(top = 8.dp),
+        modifier = Modifier.fillMaxSize()
+      ) { index ->
+        when (index) {
+          0 -> PlayLine(
+            animeDetail = animeDetail,
+            isLoadLine = isLoadLine,
+            navController = navController,
+            animeId = animeId,
+            subject = subject
+          )
+
+          1 -> SimpleIntroduction(subject)
+          2 -> ActorInformation(subject)
+          3 -> InformationErstellen(subject)
+        }
+      }
+    }
+  }
+}
+
+/* 5. 头部信息全部来自 Subject */
+@Composable
+private fun AnimeHeader(subject: Anime) {
+  Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.spacedBy(16.dp)
+  ) {
+    AsyncImage(
+      model = subject.coverUrl,
+      contentDescription = subject.name,
+      contentScale = ContentScale.Crop,
+      modifier = Modifier
+        .width(150.dp)
+        .aspectRatio(2 / 3f),
+      placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current)
+    )
+
+    Column(Modifier.weight(1f)) {
+      subject.nameCn?.let {
+        Text(
+          text = it,
+          style = MaterialTheme.typography.titleLarge,
+          fontWeight = FontWeight.Bold
+        )
+      }
+      subject.name?.let {
+        Text(
+          text = it,
+          style = MaterialTheme.typography.titleMedium,
+          fontWeight = FontWeight.Normal,
+          color = Color.Gray
+        )
+      }
+      subject.platform?.let {
+        Text(
+          text = it,
+          style = MaterialTheme.typography.bodyLarge,
+          color = Color.Gray
+        )
+      }
+      subject.status?.let {
+        Text(
+          text = it,
+          style = MaterialTheme.typography.bodyLarge,
+          color = Color.Gray
+        )
+      }
+      subject.ariDate?.let {
+        Text(
+          text = it,
+          style = MaterialTheme.typography.bodyLarge,
+          color = Color.Gray
+        )
+      }
+      subject.ariDate?.let {
+        Text(
+          text = subject.totalEpisodes.toString(),
+          style = MaterialTheme.typography.bodyLarge,
+          color = Color.Gray
+        )
+      }
+      Spacer(Modifier.height(8.dp))
+
+      subject.rating?.let {
+        Text("评分: $it", style = MaterialTheme.typography.bodyMedium)
+      }
+
+
+      subject.ariDate?.let {
+        Text("年份: $it", style = MaterialTheme.typography.bodyMedium)
+      }
+    }
+  }
+}
+
+@Composable
+fun PlayLine(
+  animeDetail: AnimeDetail?,
+  isLoadLine: Boolean,
+  navController: NavController,
+  animeId: String,
+  subject: Anime
+) {
   LazyColumn(
     modifier = Modifier
       .fillMaxSize(),
-//      .padding(16.dp),
-    verticalArrangement = Arrangement.spacedBy(16.dp)
+    verticalArrangement = Arrangement.spacedBy(8.dp)
   ) {
-    /* 封面与基本信息 */
-    item { AnimeHeader(subject) }
-
-    /* 4. 播放路线保持原逻辑不动 */
     animeDetail?.sources?.let { sourceList ->
       itemsIndexed(sourceList) { index, source ->
         source.episodes?.let { episodes ->
@@ -210,59 +351,31 @@ private fun AnimeDetailContent(
         }
       }
     }
-
-    /* 简介 */
-    item {
-      Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp)) {
-          Text("简介", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-          Text(
-            text = subject.description ?: "暂无简介",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(top = 8.dp)
-          )
-        }
-      }
-    }
-
-
   }
 }
 
-/* 5. 头部信息全部来自 Subject */
 @Composable
-private fun AnimeHeader(subject: Anime) {
-  Row(
-    modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(16.dp)
-  ) {
-    AsyncImage(
-      model = subject.coverUrl,
-      contentDescription = subject.name,
-      contentScale = ContentScale.Crop,
-      modifier = Modifier
-        .width(150.dp)
-        .aspectRatio(2 / 3f),
-      placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current)
-    )
-
-    Column(Modifier.weight(1f)) {
+fun SimpleIntroduction(subject: Anime) {
+  Card(modifier = Modifier.fillMaxWidth()) {
+    Column(Modifier.padding(16.dp)) {
+      Text("简介", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
       Text(
-        text = subject.name ?: "未知标题",
-        style = MaterialTheme.typography.titleLarge,
-        fontWeight = FontWeight.Bold
+        text = subject.description ?: "暂无简介",
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.padding(top = 8.dp)
       )
-
-      Spacer(Modifier.height(8.dp))
-
-      subject.rating?.let {
-        Text("评分: $it", style = MaterialTheme.typography.bodyMedium)
-      }
-
-
-      subject.date?.let {
-        Text("年份: $it", style = MaterialTheme.typography.bodyMedium)
-      }
     }
   }
+}
+
+@Composable
+fun ActorInformation(subject: Anime) {
+  EmptyCompose("暂无演员信息")
+  //todo 2025-10-22
+}
+
+@Composable
+fun InformationErstellen(subject: Anime) {
+  EmptyCompose("暂无信息")
+  //todo 2025-10-22
 }

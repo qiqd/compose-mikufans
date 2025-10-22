@@ -10,7 +10,7 @@ data class Anime(
   var director: String? = null,
   var actor: String? = null,
   var type: String? = null,
-  var date: String? = null,
+  var ariDate: String? = null,
   var rating: Double? = null,
   var status: String? = null,
   var updateTime: String? = null,

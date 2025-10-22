@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
@@ -34,7 +35,7 @@ import com.mikufans.xmd.miku.entiry.History
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryPage(navController: NavController) {
+fun HistoryPage(navController: NavController, baseHorizontalPadding: Dp) {
   val context = LocalContext.current
   val lazyGridState = rememberLazyListState()
   var historyList by remember { mutableStateOf<List<History>>(emptyList()) }
@@ -45,6 +46,7 @@ fun HistoryPage(navController: NavController) {
     historyList = historyList.sortedByDescending { it.time }
   }
   Scaffold(
+    modifier = Modifier.padding(horizontal = baseHorizontalPadding),
     topBar = {
       TopAppBar(
         navigationIcon = {

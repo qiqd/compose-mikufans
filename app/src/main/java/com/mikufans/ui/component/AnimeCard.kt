@@ -62,7 +62,7 @@ fun AnimeCard(
         modifier = Modifier
           .fillMaxHeight()
           .aspectRatio(2.5f / 3f)
-          .clip(MaterialTheme.shapes.small),
+          .clip(MaterialTheme.shapes.medium),
         contentScale = androidx.compose.ui.layout.ContentScale.Crop,
         model = anime?.coverUrl,
         contentDescription = anime?.name ?: "暂无标题",
@@ -77,7 +77,7 @@ fun AnimeCard(
       verticalArrangement = Arrangement.Top
     ) {
       Text(
-        text = anime?.nameCn ?: "暂无标题",
+        text = anime?.nameCn ?: "暂无中文标题",
         textAlign = TextAlign.Start,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,
@@ -96,8 +96,25 @@ fun AnimeCard(
         color = MaterialTheme.colorScheme.primary,
         fontSize = MaterialTheme.typography.labelSmall.fontSize
       )
-
+      AnimatedVisibility(
+        visible = isSimple
+      ) {
+        Column(
+          modifier = Modifier.padding(vertical = 2.dp),
+          verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+          Text(
+            color = Color.Gray,
+            text = "放送日期：${anime?.ariDate ?: "暂无放送日期"}",
+            fontSize = MaterialTheme.typography.bodySmall.fontSize,
+            textAlign = TextAlign.Start,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+        }
+      }
       Spacer(modifier = Modifier.weight(1f))
+
       AnimatedVisibility(
         visible = !isSimple
       ) {

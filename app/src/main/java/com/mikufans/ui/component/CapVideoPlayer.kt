@@ -78,6 +78,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -130,6 +131,7 @@ fun CapVideoPlayer(
   val current = LocalContext.current
   val window = (current as Activity).window
   val systemBars = WindowInsets.systemBars
+  val deviceDensity = LocalDensity.current.density
   var isLandscape by rememberSaveable { mutableStateOf(false) }
   var isPlaying by rememberSaveable { mutableStateOf(false) }
   var showVideoController by rememberSaveable { mutableStateOf(false) }
@@ -388,9 +390,12 @@ fun CapVideoPlayer(
                   Log.d("Gesture-volume", "Drag end")
                 },
               ) { change, dragAmount ->
+                val density = dragAmount / deviceDensity
+                if ((density % 5).toInt() != 0) return@detectVerticalDragGestures
                 if (!isLandscape) return@detectVerticalDragGestures
                 val audioManager = current.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                if (dragAmount > 0) {
+
+                if (dragAmount < 0) {
                   audioManager.adjustStreamVolume(
                     AudioManager.STREAM_MUSIC,
                     AudioManager.ADJUST_RAISE,
@@ -495,7 +500,7 @@ fun CapVideoPlayer(
 //          .background(Color.Red)
             .height(50.dp),
           verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.SpaceBetween,
+          horizontalArrangement = Arrangement.spacedBy(15.dp),
         ) {
           //上一个
           AnimatedVisibility(visible = isLandscape() && showPreviousButton) {

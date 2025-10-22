@@ -58,7 +58,7 @@ public class RedDrillBit implements DiscoveryService {
                 anime.setSubId(item.getId());
                 anime.setName(item.getName());
                 anime.setNameCn(item.getNameCn());
-                anime.setDate(item.getDate());
+                anime.setAriDate(item.getDate());
                 anime.setDescription(item.getSummary());
                 anime.setType(item.getMetaTags().stream().collect(Collectors.joining(",")));
                 anime.setTotalEpisodes(item.getEps());
@@ -93,11 +93,11 @@ public class RedDrillBit implements DiscoveryService {
                 List<Anime> animeList = item.getItems().stream().map(i -> {
                     Anime anime = new Anime();
                     anime.setSubId(i.getId());
-                    anime.setDate(i.getAir_date());
+                    anime.setAriDate(i.getAir_date());
                     anime.setName(i.getName());
                     anime.setNameCn(i.getName_cn());
                     anime.setDescription(i.getSummary());
-                    anime.setDate(i.getAir_date());
+                    anime.setAriDate(i.getAir_date());
                     // 添加空值检查
                     if (i.getImages() != null) {
                         String large = i.getImages().getLarge();
@@ -133,6 +133,13 @@ public class RedDrillBit implements DiscoveryService {
         }
     }
 
+    /**
+     * 获取条目详情
+     *
+     * @param subjectId 条目id
+     * @return Anime
+     */
+    @Override
     public Anime fetchSubject(Integer subjectId) throws IOException {
         String url = "/v0/subjects/" + subjectId;
         Request request = HttpUtil.getRequest(baseUrl + url);
@@ -143,10 +150,16 @@ public class RedDrillBit implements DiscoveryService {
             anime.setSubId(subject.getId());
             anime.setName(subject.getName());
             anime.setNameCn(subject.getNameCn());
-            anime.setDescription(subject.getSummary());
-            anime.setType(subject.getMetaTags().stream().collect(Collectors.joining(",")));
+            anime.setPlatform(subject.getPlatform());
             anime.setTotalEpisodes(subject.getEps());
-            anime.setCoverUrl(subject.getImages().getLarge());
+            anime.setDescription(subject.getSummary());
+            if (subject.getMetaTags() != null) {
+                anime.setType(String.join(",", subject.getMetaTags()));
+            }
+            anime.setTotalEpisodes(subject.getEps());
+            if (subject.getImages() != null) {
+                anime.setCoverUrl(subject.getImages().getLarge());
+            }
             return anime;
         }
     }
