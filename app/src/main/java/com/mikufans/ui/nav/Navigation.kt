@@ -1,6 +1,8 @@
 package com.mikufans.ui.nav
 
 import androidx.navigation.NavController
+import com.alibaba.fastjson.JSON
+import com.mikufans.xmd.miku.entiry.Anime
 import java.net.URLEncoder
 
 object Navigation {
@@ -27,12 +29,14 @@ object Navigation {
     navController: NavController,
     animeId: String,
     animeSubId: String,
-    episodeId: String
+    episodeId: String,
+    subject: Anime
   ) {
     val animeSubId = URLEncoder.encode(animeSubId, "UTF-8")
     val animeId = URLEncoder.encode(animeId, "UTF-8")
     val eps = URLEncoder.encode(episodeId, "UTF-8")
-    navController.navigate("$ANIME_PLAYER/$animeId/$animeSubId/$eps") {
+    val subject = URLEncoder.encode(JSON.toJSONString(subject), "UTF-8")
+    navController.navigate("$ANIME_PLAYER/$animeId/$animeSubId/$subject/$eps") {
       launchSingleTop = true
       restoreState = true
     }

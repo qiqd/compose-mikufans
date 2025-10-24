@@ -59,7 +59,6 @@ import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.Episode
 import com.mikufans.xmd.miku.entiry.History
 import com.mikufans.xmd.miku.entiry.PlayInfo
-import com.mikufans.xmd.teto.service.impl.RedDrillBit
 import com.mikufans.xmd.util.SourceUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -73,7 +72,8 @@ fun PlaybackPage(
   animeSubId: String,
   navController: NavController?,
   episodeList: List<Episode>,
-  activity: ComponentActivity
+  activity: ComponentActivity,
+  subject: Anime
 ) {
   val content = LocalContext.current
   val tabs = arrayOf("简介", "剧集")
@@ -84,7 +84,7 @@ fun PlaybackPage(
   var currentPlayingEpisodeId by rememberSaveable { mutableStateOf(episodeList[0].id) }
   var isLoading by rememberSaveable { mutableStateOf(false) }
   var playInfo by rememberSaveable { mutableStateOf(PlayInfo()) }
-  var subject by rememberSaveable { mutableStateOf<Anime?>(null) }
+  var subject by rememberSaveable { mutableStateOf<Anime>(subject) }
   val episodes by rememberSaveable { mutableStateOf<List<Episode>?>(episodeList) }
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
@@ -115,18 +115,12 @@ fun PlaybackPage(
 
   /* 初始数据加载 */
   LaunchedEffect(Unit) {
-    if (subject != null) {
-      return@LaunchedEffect
-    }
     isLoading = true
     historyList =
       LocalStorage.getList(content, "view:history", History::class.java)?.toMutableList()
         ?: mutableListOf()
     val idx = historyList.indexOfFirst { it.id == animeId }
     try {
-      coroutineScope.launch(Dispatchers.IO) {
-        subject = RedDrillBit().fetchSubject(animeSubId.toInt())
-      }
       if (idx >= 0) {
         val tempPlayInfo = PlayInfo()
         currentPlayingEpisodeId = historyList[idx].episodeId

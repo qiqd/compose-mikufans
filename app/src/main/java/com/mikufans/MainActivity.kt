@@ -40,6 +40,7 @@ import com.mikufans.ui.page.MinePage
 import com.mikufans.ui.page.PlaybackPage
 import com.mikufans.ui.page.SubscribePage
 import com.mikufans.ui.theme.MikufansTheme
+import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.Episode
 import com.mikufans.xmd.util.SourceUtil
 import java.net.URLDecoder
@@ -118,12 +119,11 @@ fun MainScreen(activity: ComponentActivity) {
 
   }) { innerPadding ->
     NavHost(
-      modifier = Modifier
-        .padding(
-          if (showNavigationBar) PaddingValues(bottom = innerPadding.calculateBottomPadding() / 2) else PaddingValues(
-            0.dp
-          )
-        ),
+      modifier = Modifier.padding(
+        if (showNavigationBar) PaddingValues(bottom = innerPadding.calculateBottomPadding() / 2) else PaddingValues(
+          0.dp
+        )
+      ),
       navController = navController,
       startDestination = BottomNavigationItem.Index.route,
     ) {
@@ -162,15 +162,17 @@ fun MainScreen(activity: ComponentActivity) {
         val animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
         DetailPage(animeId, animeSubId.toInt(), animeName, navController, baseHorizontalPadding)
       }
-      composable(Navigation.ANIME_PLAYER + "/{animeId}/{animeSubId}/{episodes}") { backStackEntry ->
+      composable(Navigation.ANIME_PLAYER + "/{animeId}/{animeSubId}/{subject}/{episodes}") { backStackEntry ->
         var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
         animeId = URLDecoder.decode(animeId, "UTF-8")
         var episodes = backStackEntry.arguments?.getString("episodes") ?: ""
         val animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
         episodes = URLDecoder.decode(episodes, "UTF-8")
-
+        val subject =
+          URLDecoder.decode(backStackEntry.arguments?.getString("subject") ?: "", "UTF-8")
         val source = JSON.parseArray(episodes, Episode::class.java)
-        PlaybackPage(animeId, animeSubId, navController, source, activity)
+        val parseObject = JSON.parseObject(subject, Anime::class.java)
+        PlaybackPage(animeId, animeSubId, navController, source, activity, parseObject)
       }
       composable(route = Navigation.HISTORY) { HistoryPage(navController, baseHorizontalPadding) }
       composable(route = Navigation.ABOUT) { AboutPage(navController, baseHorizontalPadding) }

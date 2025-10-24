@@ -53,7 +53,7 @@ public class RedDrillBit implements DiscoveryService {
             String s = ValidateUtil.validateResponse(response);
             SubjectSearch subjectSearch = JSON.parseObject(s, SubjectSearch.class);
             List<SubjectSearch.Subject> subjects = subjectSearch.getData();
-            List<Anime> animeList = subjects.stream().map(item -> {
+            return subjects.stream().map(item -> {
                 Anime anime = new Anime();
                 anime.setSubId(item.getId());
                 anime.setName(item.getName());
@@ -63,9 +63,9 @@ public class RedDrillBit implements DiscoveryService {
                 anime.setType(item.getMetaTags().stream().collect(Collectors.joining(",")));
                 anime.setTotalEpisodes(item.getEps());
                 anime.setCoverUrl(item.getImages().getLarge());
+                anime.setType(String.join(",", item.getMetaTags()));
                 return anime;
             }).collect(Collectors.toList());
-            return animeList;
         }
     }
 

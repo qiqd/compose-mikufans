@@ -317,7 +317,8 @@ fun PlayLine(
                   navController,
                   animeId,
                   subject.subId.toString(),
-                  json
+                  json,
+                  subject
                 )
               }
           ) {
@@ -335,8 +336,9 @@ fun PlayLine(
       item {
         if (isLoadLine) {
           Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
           ) { CircularProgressIndicator() }
         } else {
           Card {

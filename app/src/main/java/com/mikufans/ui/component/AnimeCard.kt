@@ -105,7 +105,15 @@ fun AnimeCard(
         ) {
           Text(
             color = Color.Gray,
-            text = "放送日期：${anime?.ariDate ?: "暂无放送日期"}",
+            text = anime?.ariDate ?: "暂无放送日期",
+            fontSize = MaterialTheme.typography.bodySmall.fontSize,
+            textAlign = TextAlign.Start,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+          Text(
+            color = Color.Gray,
+            text = anime?.type ?: "暂无类型",
             fontSize = MaterialTheme.typography.bodySmall.fontSize,
             textAlign = TextAlign.Start,
             maxLines = 1,
