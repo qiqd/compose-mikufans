@@ -3,6 +3,7 @@ package com.mikufans.util
 import android.content.Context
 import androidx.core.content.edit
 import com.alibaba.fastjson.JSON
+import java.io.File
 
 object LocalStorage {
   private const val FILE = "local_storage"
@@ -31,6 +32,19 @@ object LocalStorage {
       .getString(key, null)
       ?.let { JSON.parseArray(it, clazz) }
 
+  fun clearCache(context: Context) {
+    context.cacheDir?.let { deleteRecursively(it) }
+  }
+
+  /**
+   * 辅助：删除单个文件或目录
+   */
+  private fun deleteRecursively(file: File) {
+    if (file.isDirectory) {
+      file.listFiles()?.forEach { deleteRecursively(it) }
+    }
+    file.delete()
+  }
 }
 
 

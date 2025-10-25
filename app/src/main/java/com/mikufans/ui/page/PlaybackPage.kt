@@ -96,9 +96,9 @@ fun PlaybackPage(
       val history = History(
         id = animeId,
         subId = animeSubId,
-        name = subject?.name,
-        nameCn = subject?.nameCn,
-        cover = subject?.coverUrl,
+        name = subject.name,
+        nameCn = subject.nameCn,
+        cover = subject.coverUrl,
         episodeId = currentPlayingEpisodeId,
         episodeIndex = currentPlayingEpisodeIndex,
         position = currentPosition - 5000,

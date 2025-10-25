@@ -60,7 +60,7 @@ public class RedDrillBit implements DiscoveryService {
                 anime.setNameCn(item.getNameCn());
                 anime.setAriDate(item.getDate());
                 anime.setDescription(item.getSummary());
-                anime.setType(item.getMetaTags().stream().collect(Collectors.joining(",")));
+                anime.setType(String.join(",", item.getMetaTags()));
                 anime.setTotalEpisodes(item.getEps());
                 anime.setCoverUrl(item.getImages().getLarge());
                 anime.setType(String.join(",", item.getMetaTags()));

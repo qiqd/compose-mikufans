@@ -10,6 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -23,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.navigation.NavController
 import com.mikufans.ui.nav.Navigation
+import com.mikufans.util.LocalStorage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +34,7 @@ fun MinePage(
   activity: ComponentActivity,
   baseHorizontalPadding: Dp,
 ) {
+  val userEmail = LocalStorage.get(navController.context, "email", String::class.java) ?: ""
   BackHandler { activity.moveTaskToBack(true) }
   Scaffold(
     modifier = Modifier.padding(horizontal = baseHorizontalPadding),
@@ -43,13 +47,35 @@ fun MinePage(
           modifier = Modifier
             .clip(MaterialTheme.shapes.medium)
             .clickable {
+              Navigation.navigateToLogin(navController, userEmail)
+            },
+          headlineContent = { Text(userEmail.ifEmpty { "未登录" }) },
+          leadingContent = {
+            Icon(
+              imageVector = Icons.Default.Person,
+              contentDescription = "person"
+            )
+          },
+          trailingContent = {
+            Icon(
+              Icons.AutoMirrored.Filled.KeyboardArrowRight,
+              contentDescription = null
+            )
+          }
+        )
+      }
+      item {
+        ListItem(
+          modifier = Modifier
+            .clip(MaterialTheme.shapes.medium)
+            .clickable {
               Navigation.navigateToHistory(navController)
             },
           headlineContent = { Text("历史记录") },
           leadingContent = {
             Icon(
               imageVector = Icons.Default.History,
-              contentDescription = "历史记录"
+              contentDescription = "history"
             )
           },
           trailingContent = {
@@ -71,7 +97,29 @@ fun MinePage(
           leadingContent = {
             Icon(
               imageVector = Icons.Default.Info,
-              contentDescription = "关于"
+              contentDescription = "about"
+            )
+          },
+          trailingContent = {
+            Icon(
+              Icons.AutoMirrored.Filled.KeyboardArrowRight,
+              contentDescription = null
+            )
+          }
+        )
+      }
+      item {
+        ListItem(
+          modifier = Modifier
+            .clip(MaterialTheme.shapes.medium)
+            .clickable {
+              Navigation.navigateToSetting(navController)
+            },
+          headlineContent = { Text("设置") },
+          leadingContent = {
+            Icon(
+              Icons.Default.Settings,
+              contentDescription = null
             )
           },
           trailingContent = {

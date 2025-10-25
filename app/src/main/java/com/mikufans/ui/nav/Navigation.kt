@@ -11,6 +11,8 @@ object Navigation {
   const val HISTORY = "history"
   const val ABOUT = "about"
   const val FULL_SEARCH = "fullSearch"
+  const val SETTING = "setting"
+  const val LOGIN = "login"
   fun navigateToAnimeDetail(
     navController: NavController,
     animeId: String? = "",
@@ -58,6 +60,20 @@ object Navigation {
 
   fun navigateToFullSearch(navController: NavController, keyword: String) {
     navController.navigate("$FULL_SEARCH/$keyword") {
+      launchSingleTop = true
+      restoreState = true
+    }
+  }
+
+  fun navigateToSetting(navController: NavController) {
+    navController.navigate(SETTING) {
+      launchSingleTop = true
+      restoreState = true
+    }
+  }
+
+  fun navigateToLogin(navController: NavController, email: String) {
+    navController.navigate("$LOGIN/$email") {
       launchSingleTop = true
       restoreState = true
     }

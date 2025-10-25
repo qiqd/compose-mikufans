@@ -70,6 +70,8 @@ android {
 }
 
 dependencies {
+
+//  implementation("com.github.kittinunf.fuel:fuel:2.3.1")
   // Compose Video 视频播放库
   implementation("androidx.compose.material:material-icons-extended:1.7.8")
   implementation("androidx.media3:media3-exoplayer-hls:1.8.0")
@@ -84,6 +86,7 @@ dependencies {
   implementation(libs.material3)
   implementation(libs.androidx.foundation)
   implementation(libs.androidx.runtime.livedata)
+  implementation(libs.androidx.compose.foundation.layout)
   // 添加新依赖项
   compileOnly(libs.lombok)
   implementation(libs.fastjson)

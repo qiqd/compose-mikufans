@@ -2,6 +2,7 @@ package com.mikufans
 
 import WeeklyPage
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -29,6 +30,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.alibaba.fastjson.JSON
+import com.mikufans.api.UserApi
 import com.mikufans.ui.nav.BottomNavigationItem
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.ui.page.AboutPage
@@ -36,12 +38,18 @@ import com.mikufans.ui.page.DetailPage
 import com.mikufans.ui.page.FullSearch
 import com.mikufans.ui.page.HistoryPage
 import com.mikufans.ui.page.IndexPage
+import com.mikufans.ui.page.LoginPage
 import com.mikufans.ui.page.MinePage
 import com.mikufans.ui.page.PlaybackPage
+import com.mikufans.ui.page.SettingPage
 import com.mikufans.ui.page.SubscribePage
 import com.mikufans.ui.theme.MikufansTheme
+import com.mikufans.util.LocalStorage
+import com.mikufans.util.Network
 import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.Episode
+import com.mikufans.xmd.miku.entiry.History
+import com.mikufans.xmd.util.HttpUtil
 import com.mikufans.xmd.util.SourceUtil
 import java.net.URLDecoder
 
@@ -50,6 +58,7 @@ class MainActivity : ComponentActivity() {
   init {
     if (SourceUtil.getSourceWithDelay().isEmpty()) {
       Thread {
+        HttpUtil.applicationContext = this
         SourceUtil.initSources()
       }.start()
     }
@@ -62,6 +71,20 @@ class MainActivity : ComponentActivity() {
       MikufansTheme {
         MainScreen(activity = this)
       }
+    }
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    if (!(Network.isNetworkAvailable(this))) {
+      return
+    }
+    try {
+      LocalStorage.getList(this, "view:history", History::class.java)?.let {
+        UserApi.updateHistory(it)
+      }
+    } catch (e: Exception) {
+      Log.e("保存历史记录失败", e.toString())
     }
   }
 }
@@ -79,13 +102,6 @@ fun MainScreen(activity: ComponentActivity) {
     BottomNavigationItem.Subscribe,
     BottomNavigationItem.Me
   )
-  val title = when (currentDestination) {
-    BottomNavigationItem.Index.route -> "首页"
-    BottomNavigationItem.Weekly.route -> "周更表"
-    BottomNavigationItem.Subscribe.route -> "追番"
-    BottomNavigationItem.Me.route -> "我的"
-    else -> ""
-  }
   val showNavigationBar = screens.any { it.route == currentDestination }
   Scaffold(bottomBar = {
 
@@ -179,6 +195,11 @@ fun MainScreen(activity: ComponentActivity) {
       composable(route = Navigation.FULL_SEARCH + "/{keyword}") { backStackEntry ->
         val keyword = backStackEntry.arguments?.getString("keyword") ?: ""
         FullSearch(keyword, navController)
+      }
+      composable(route = Navigation.SETTING) { SettingPage(navController, baseHorizontalPadding) }
+      composable(route = Navigation.LOGIN + "/{email}") { navBackStackEntry ->
+        val email = navBackStackEntry.arguments?.getString("email") ?: ""
+        LoginPage(navController, baseHorizontalPadding, email)
       }
 
 
