@@ -2,7 +2,6 @@ package com.mikufans.xmd.util;
 
 import com.mikufans.xmd.miku.entiry.WebsiteDelay;
 import com.mikufans.xmd.miku.service.HtmlParser;
-import com.mikufans.xmd.miku.service.impl.AAFun;
 import com.mikufans.xmd.miku.service.impl.Girigirilove;
 
 import java.util.ArrayList;

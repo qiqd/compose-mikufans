@@ -11,6 +11,8 @@ import com.mikufans.xmd.miku.entiry.Source;
 import com.mikufans.xmd.util.HttpUtil;
 import com.mikufans.xmd.util.ValidateUtil;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -19,6 +21,7 @@ import org.jsoup.select.Elements;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -318,5 +321,20 @@ public class CommonTemplate implements HtmlParser {
             return matcher.group(1);
         }
         return null;
+    }
+
+    @Override
+    public @NotNull String getName() {
+        return "";
+    }
+
+    @Override
+    public @NotNull String getLogoUrl() {
+        return "";
+    }
+
+    @Override
+    public @Nullable List<@Nullable Schedule> weeklySchedule() throws Exception {
+        return Collections.emptyList();
     }
 }
