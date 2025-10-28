@@ -17,10 +17,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Source
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
@@ -29,6 +32,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -74,6 +78,10 @@ fun IndexPage(
   var sources by rememberSaveable { mutableStateOf(emptyList<WebsiteDelay>()) }
   var isRefreshing by rememberSaveable { mutableStateOf(false) }
   val pullToRefreshState = rememberPullToRefreshState()
+  var showBottomSheet by rememberSaveable { mutableStateOf(false) }
+  val sheetState = rememberModalBottomSheetState()
+  val scope = rememberCoroutineScope()
+  val allSource = SourceUtil.SOURCES
   BackHandler { activity.moveTaskToBack(true) }
   LaunchedEffect(Unit) {
     if (sources.isNotEmpty()) return@LaunchedEffect
@@ -127,10 +135,61 @@ fun IndexPage(
     topBar = {
       TopAppBar(
         title = { Text("首页") },
+        actions = {
+          IconButton(onClick = {
+            scope.launch { sheetState.show() }.invokeOnCompletion {
+              if (!sheetState.isVisible) {
+                showBottomSheet = true
+              }
+            }
+          }) {
+            Icon(
+              imageVector = Icons.Default.Source,
+              contentDescription = "切换资源"
+            )
+          }
+        }
       )
     },
   ) { innerPadding ->
-
+    ModalBottomSheet(
+      onDismissRequest = {
+        showBottomSheet = false
+      },
+      sheetState = sheetState
+    ) {
+//      LazyColumn {
+//        items(allSource.size) { source ->
+//          ListItem(
+//            modifier = Modifier.clickable {
+//              showBottomSheet = false
+//              scope.launch {
+//                sheetState.hide()
+//              }
+//            },
+//            tonalElevation = 2.dp,
+//            colors = ListItemDefaults.colors(
+//              containerColor = MaterialTheme.colorScheme.surfaceVariant
+//            ),
+//            leadingContent = {
+//              AsyncImage(
+//                modifier = Modifier
+//                  .fillMaxHeight()
+//                  .aspectRatio(2.5f / 3f)
+//                  .clip(MaterialTheme.shapes.medium),
+//                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+//                model = sources[source].,
+//                contentDescription = anime?.name ?: "暂无标题",
+//                placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current),
+//              )
+//            },
+//            headlineContent = {
+//              Text(sources[source].domain)
+//            }
+//          )
+//        }
+//      }
+    }
     Column(
       modifier = Modifier
         .padding(innerPadding)

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 public class SourceUtil {
-    private static final Map<String, HtmlParser> SOURCES = new HashMap<>();
+    public static final Map<String, HtmlParser> SOURCES = new HashMap<>();
     private static final List<WebsiteDelay> delays = new ArrayList<>();
 
     static {

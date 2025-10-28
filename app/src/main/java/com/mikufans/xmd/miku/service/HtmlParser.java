@@ -12,6 +12,9 @@ import java.util.List;
  * HTML解析接口规范
  */
 public interface HtmlParser {
+    String name = "";
+    String logoUrl = "";
+    String baseUrl = "";
 
     /**
      * 解析视频搜索结果

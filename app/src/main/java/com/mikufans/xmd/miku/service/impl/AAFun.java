@@ -42,6 +42,8 @@ import okhttp3.Response;
 
 @Slf4j
 public class AAFun implements HtmlParser, Serializable {
+    public static final String NAME = "风铃动漫";
+    public static final String LOGO = "https://p.upyun.com/demo/tmp/Hds66ovM.png";
     final static String baseUrl = "https://www.aafun.cc";
 
 

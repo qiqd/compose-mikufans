@@ -25,7 +25,8 @@ import okhttp3.Response;
 
 
 public class Girigirilove extends CommonTemplate implements Serializable {
-
+    public static final String NAME = " Girigiri爱动漫";
+    public static final String LOGO = "https://bgm.girigirilove.com/upload/site/20251010-1/b84e444374bcec3a20419e29e1070e1b.png";
 
     public Girigirilove() {
         super();
