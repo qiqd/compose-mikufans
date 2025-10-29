@@ -71,6 +71,7 @@ import java.net.URLEncoder
 @Composable
 fun DetailPage(
   animeId: String = "",
+  playSource: String = "",
   animeSubId: Int,
   animeName: String,
   navController: NavController,
@@ -82,7 +83,7 @@ fun DetailPage(
   val coroutineScope = rememberCoroutineScope()
   var isLoading by remember { mutableStateOf(false) }
   var isLoadLine by remember { mutableStateOf(true) }
-  val sources = rememberSaveable { SourceUtil.getSourceWithDelay() }
+  val sources = SourceUtil.getSourceWithDelay()
   var id by rememberSaveable { mutableStateOf(animeId) }
   LaunchedEffect(Unit) {
     if (subject != null || animeDetail != null) {
@@ -90,18 +91,28 @@ fun DetailPage(
     }
     isLoading = true
     coroutineScope.launch(Dispatchers.IO) {
+      val service = sources[0].service
       try {
         val subjectSearch = RedDrillBit().fetchSubject(animeSubId)
         subject = subjectSearch
         isLoading = false
-        if (id.isEmpty()) {
-          val searchResult = sources[0].service.getSearchResult(animeName, 1, 10)
-          val nameCnMap = searchResult.associateBy { it.nameCn }
-          val bestMatch =
-            StringMatchUtil.findBestMatchWithJaroWinkler(nameCnMap.keys.toList(), animeName)
-          id = nameCnMap[bestMatch]?.id!!
-        }
-        animeDetail = sources[0].service.getAnimeDetail(id)
+        // 没有id时，本地历史记录为空时，使用搜索结果
+//        if (id.isEmpty()) {
+//          val searchResult = service.getSearchResult(animeName, 1, 10)
+//          val nameCnMap = searchResult.associateBy { it.nameCn }
+//          val bestMatch =
+//            StringMatchUtil.findBestMatchWithJaroWinkler(nameCnMap.keys.toList(), animeName)
+//          id = nameCnMap[bestMatch]?.id!!
+//        }
+//        animeDetail = service.getAnimeDetail(id)
+        val searchResult = service.getSearchResult(subjectSearch.nameCn, 1, 10)
+        val nameCnMap = searchResult.associateBy { it.nameCn }
+        val bestMatch = StringMatchUtil.findBestMatchWithJaroWinkler(
+          nameCnMap.keys.toList(),
+          subjectSearch.nameCn
+        )
+        val targetAnime = nameCnMap[bestMatch]
+        animeDetail = service.getAnimeDetail(targetAnime?.id)
         launch(Dispatchers.Main) { isLoading = false }
       } catch (e: Exception) {
         e.printStackTrace()

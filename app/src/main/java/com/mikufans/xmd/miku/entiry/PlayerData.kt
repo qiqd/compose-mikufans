@@ -1,5 +1,6 @@
 package com.mikufans.xmd.miku.entiry
 
+
 data class PlayerData(
   var flag: String? = null,
   var encrypt: Int? = null,

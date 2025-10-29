@@ -1,7 +1,9 @@
 package com.mikufans.xmd.miku.entiry;
 
 
-public class Result<T> {
+import java.io.Serializable;
+
+public class Result<T> implements Serializable {
     private T data;
 
     private String message;

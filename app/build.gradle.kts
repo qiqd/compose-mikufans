@@ -4,6 +4,7 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.android)
   alias(libs.plugins.kotlin.compose)
+  id("kotlin-parcelize")
 }
 
 android {
@@ -87,6 +88,7 @@ dependencies {
   implementation(libs.androidx.foundation)
   implementation(libs.androidx.runtime.livedata)
   implementation(libs.androidx.compose.foundation.layout)
+  implementation(libs.androidx.compose.material3)
   // 添加新依赖项
   compileOnly(libs.lombok)
   implementation(libs.fastjson)

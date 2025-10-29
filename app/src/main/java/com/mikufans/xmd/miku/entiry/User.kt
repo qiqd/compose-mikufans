@@ -1,7 +1,7 @@
 package com.mikufans.xmd.miku.entiry
 
-import java.io.Serializable
 import java.time.LocalDateTime
+
 
 data class User(
   val name: String? = null,
@@ -9,4 +9,4 @@ data class User(
   val password: String? = null,
   val avatar: String? = null,
   val updateTime: LocalDateTime? = null,
-) : Serializable
+) : java.io.Serializable

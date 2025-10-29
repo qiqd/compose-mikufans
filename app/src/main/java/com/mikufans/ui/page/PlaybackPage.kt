@@ -90,7 +90,7 @@ fun PlaybackPage(
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
   val coroutineScope = rememberCoroutineScope()
   var isFullscreen by rememberSaveable { mutableStateOf(false) }
-  val sources = rememberSaveable { SourceUtil.getSourceWithDelay() }/* 历史记录保存 */
+  val sources = SourceUtil.getSourceWithDelay()
   DisposableEffect(Unit) {
     onDispose {
       val history = History(
@@ -104,7 +104,8 @@ fun PlaybackPage(
         position = currentPosition - 5000,
         isLove = isLove,
         videoUrl = playInfo.currentEpisodeUrl,
-        time = System.currentTimeMillis()
+        time = System.currentTimeMillis(),
+        source = sources[0].service.name
       )
       val list = historyList.toMutableList()
       val idx = list.indexOfFirst { it.subId == animeSubId }
@@ -134,11 +135,13 @@ fun PlaybackPage(
         coroutineScope.launch(Dispatchers.IO) {
           try {
             playInfo.currentEpisodeUrl ?: let {
-              playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId)
+              playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId) ?: PlayInfo()
             }
           } catch (e: Exception) {
             Log.e("player.error", e.toString())
-            Toast.makeText(content, "加载数据失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            coroutineScope.launch {
+              Toast.makeText(content, "加载数据失败: ${e.message}", Toast.LENGTH_LONG).show()
+            }
           }
         }
       }
@@ -164,7 +167,7 @@ fun PlaybackPage(
 
           CapVideoPlayer(
             videoUrl = playInfo.currentEpisodeUrl,
-            title = subject?.nameCn ?: subject?.name ?: "",
+            title = subject.nameCn ?: subject.name ?: "",
             episodeIndex = currentPlayingEpisodeIndex,
             showNextButton = false,
             showPreviousButton = false,
@@ -213,7 +216,7 @@ fun PlaybackPage(
               coroutineScope.launch(Dispatchers.IO) {
 //                historyPosition = 0L
 
-                playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId)
+                playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId)!!
                 currentPosition = 0L
               }
             } catch (e: Exception) {

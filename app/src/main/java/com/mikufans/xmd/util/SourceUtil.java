@@ -2,6 +2,7 @@ package com.mikufans.xmd.util;
 
 import com.mikufans.xmd.miku.entiry.WebsiteDelay;
 import com.mikufans.xmd.miku.service.HtmlParser;
+import com.mikufans.xmd.miku.service.impl.AAfun;
 import com.mikufans.xmd.miku.service.impl.Girigirilove;
 
 import java.util.ArrayList;
@@ -10,11 +11,11 @@ import java.util.List;
 import java.util.Map;
 
 public class SourceUtil {
-    public static final Map<String, HtmlParser> SOURCES = new HashMap<>();
+    private static final Map<String, HtmlParser> SOURCES = new HashMap<>();
     private static final List<WebsiteDelay> delays = new ArrayList<>();
 
     static {
-        SOURCES.put("www.aafun.cc", new AAFun());
+        SOURCES.put("www.aafun.cc", new AAfun());
         SOURCES.put("bgm.girigirilove.com", new Girigirilove());
     }
 
@@ -25,5 +26,11 @@ public class SourceUtil {
 
     public static List<WebsiteDelay> getSourceWithDelay() {
         return delays;
+    }
+
+    public static void moveDelayToFirst(int index) {
+        if (index <= 0 || index >= delays.size()) return;
+        WebsiteDelay target = delays.remove(index);
+        delays.add(0, target);
     }
 }

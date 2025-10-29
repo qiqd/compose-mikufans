@@ -90,6 +90,7 @@ fun HistoryPage(navController: NavController, baseHorizontalPadding: Dp) {
             ) { animeSubId, animeName ->
               Navigation.navigateToAnimeDetail(
                 navController = navController,
+                playSource = historyList[index].source!!,
                 animeSubId = animeSubId.toString(),
                 animeId = historyList[index].id,
                 animeName = animeName,

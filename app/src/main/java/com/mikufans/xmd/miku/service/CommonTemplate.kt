@@ -1,340 +1,241 @@
-package com.mikufans.xmd.miku.service;
+package com.mikufans.xmd.miku.service
 
-import com.alibaba.fastjson.JSON;
-import com.mikufans.xmd.miku.entiry.Anime;
-import com.mikufans.xmd.miku.entiry.AnimeDetail;
-import com.mikufans.xmd.miku.entiry.Episode;
-import com.mikufans.xmd.miku.entiry.PlayInfo;
-import com.mikufans.xmd.miku.entiry.PlayerData;
-import com.mikufans.xmd.miku.entiry.Schedule;
-import com.mikufans.xmd.miku.entiry.Source;
-import com.mikufans.xmd.util.HttpUtil;
-import com.mikufans.xmd.util.ValidateUtil;
+import android.util.Log
+import com.alibaba.fastjson.JSON
+import com.mikufans.xmd.miku.entiry.Anime
+import com.mikufans.xmd.miku.entiry.AnimeDetail
+import com.mikufans.xmd.miku.entiry.Episode
+import com.mikufans.xmd.miku.entiry.PlayInfo
+import com.mikufans.xmd.miku.entiry.PlayerData
+import com.mikufans.xmd.miku.entiry.Schedule
+import com.mikufans.xmd.miku.entiry.Source
+import com.mikufans.xmd.util.HttpUtil
+import com.mikufans.xmd.util.ValidateUtil
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
+import java.io.Serializable
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+import java.util.regex.Pattern
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+open class CommonTemplate : HtmlParser, Serializable {
+  val blankReg = "[\\s\u3000]+"
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+  override val name: String = "通用模板"
+  override val logoUrl: String = ""
+  override val baseUrl: String = ""
 
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+  override fun getSearchResult(keyword: String?, page: Int?, size: Int?): MutableList<Anime> {
+    val client = HttpUtil.getClient()
+    val request = HttpUtil.getRequest("$baseUrl$keyword")
+    val animeList = ArrayList<Anime>()
+    val response = client.newCall(request).execute()
+    val html = ValidateUtil.validateResponse(response)
+    if (html == null) return animeList
 
-public class CommonTemplate implements HtmlParser {
-    private String baseUrl;
-    private String blankReg = "[\\s\u3000]+";
+    val document = Jsoup.parse(html)
+    val elements = document.select("div.public-list-box.search-box")
 
-    public String getBlankReg() {
-        return blankReg;
+    for (element in elements) {
+      val href = element.select("a.public-list-exp").attr("href")
+      val cover = element.select("img.gen-movie-img").attr("data-src")
+      val status = element.select("span.public-list-prb").text()
+      val title = element.select("div.thumb-txt.cor4.hide").text()
+      val type = element.select("div.thumb-else a").joinToString("•", transform = Element::text)
+      val director = element.select("div.thumb-director a:not(:first-child)")
+        .joinToString("•", transform = Element::text)
+      val actor = element.select("div.thumb-actor a:not(:first-child)")
+        .joinToString("•", transform = Element::text)
+      val description =
+        element.select("span.cor5.thumb-blurb").text().replace(blankReg.toRegex(), "")
+
+      val anime = Anime().apply {
+        id = href
+        name = title
+        coverUrl = cover
+      }
+      anime.description = description
+      anime.director = director
+      anime.actor = actor
+      anime.type = type
+      anime.status = status
+      animeList.add(anime)
     }
+    return animeList
+  }
 
-    public void setBlankReg(String blankReg) {
-        this.blankReg = blankReg;
-    }
-
-    public String getBaseUrl() {
-        return baseUrl;
-    }
-
-    public void setBaseUrl(String baseUrl) {
-        this.baseUrl = baseUrl;
-    }
-
-    /**
-     * 获取搜索结果
-     *
-     * @param searchUrl 搜索页url
-     * @param page      页码
-     * @param size      大小
-     * @return List<Anime>
-     */
-    @Override
-    public List<Anime> getSearchResult(String searchUrl, Integer page, Integer size) throws Exception {
-        OkHttpClient client = HttpUtil.getClient();
-        Request request = HttpUtil.getRequest(baseUrl + searchUrl);
-        List<Anime> animeList = new ArrayList<>();
-
-        try (Response response = client.newCall(request).execute()) {
-            String html = ValidateUtil.validateResponse(response);
-            if (html == null) {
-                return animeList;
-            }
-            Document document = Jsoup.parse(html);
-            Elements elements = document.select("div.public-list-box.search-box");
-            for (Element element : elements) {
-                String href = element.select("a.public-list-exp").attr("href");
-                String cover = element.select("img.gen-movie-img").attr("data-src");
-                String status = element.select("span.public-list-prb").text();
-                String title = element.select("div.thumb-txt.cor4.hide").text();
-                String type = element.select("div.thumb-else a").stream().map(Element::text).collect(Collectors.joining("•"));
-                String director = element.select("div.thumb-director a:not(:first-child)").stream().map(Element::text).collect(Collectors.joining("•"));
-                String actor = element.select("div.thumb-actor a:not(:first-child)").stream().map(Element::text).collect(Collectors.joining("•"));
-                String description = element.select("span.cor5.thumb-blurb").text().replaceAll(blankReg, "");
-                Anime anime = new Anime();
-                anime.setId(href);
-                anime.setName(title);
-                anime.setDescription(description);
-                anime.setDirector(director);
-                anime.setActor(actor);
-                anime.setType(type);
-                anime.setStatus(status);
-                anime.setCoverUrl(cover);
-                animeList.add(anime);
-            }
-            return animeList;
-        } catch (IOException e) {
-//      log.error("获取搜索结果失败: {}", e.getMessage());
-            throw new Exception("获取搜索结果失败", e);
+  override fun getAnimeDetail(videoId: String?): AnimeDetail? {
+    val fullUrl = "$baseUrl$videoId"
+    val client = HttpUtil.getClient()
+    val request = HttpUtil.getRequest(fullUrl)
+    val animeDetail = AnimeDetail()
+    val response = client.newCall(request).execute()
+    val s = ValidateUtil.validateResponse(response)
+    val document = Jsoup.parse(s)
+    val detailDiv = document.select("div.vod-detail.style-detail")
+    val coverImg = detailDiv.select("img.lazy.lazy1.mask-1").attr("data-src")
+    val title = detailDiv.select("h3.slide-info-name").text()
+    val part1 =
+      detailDiv.select("div.slide-info span.slide-info-remarks").firstOrNull()?.text() ?: ""
+    val part2 = detailDiv.select("div.slide-info a").joinToString("•", transform = Element::text)
+    val status = part2 + part1
+    val director =
+      detailDiv.select("div.slide-info")[1].select("a").joinToString("•", transform = Element::text)
+    val actor =
+      detailDiv.select("div.slide-info")[2].select("a").joinToString("•", transform = Element::text)
+    val type =
+      detailDiv.select("a.deployment.none.cor5 span").joinToString(transform = Element::text)
+    val description = detailDiv.select("div#height_limit").text().replace(blankReg.toRegex(), "")
+    val listBoxDiv = document.select("div.anthology-list-box.none")
+    val sources = listBoxDiv.map { element ->
+      Source().apply {
+        episodes = element.select("a").map { item ->
+          Episode(
+            id = item.attr("href"),
+            title = item.text(),
+            playUrl = item.attr("href"),
+            //todo
+          )
         }
+      }
     }
+    val anime = Anime().apply {
+      id = videoId
+      name = title
+      coverUrl = coverImg
+    }
+    anime.director = director
+    anime.actor = actor
+    anime.type = type
+    anime.status = status
+    anime.description = description
+    animeDetail.anime = anime
+    animeDetail.sources = sources
+    animeDetail.anime = anime
+    return animeDetail
+  }
 
-    /**
-     * 获取视频详情
-     *
-     * @param detailUrl 详情页url
-     * @return DetailPage
-     */
-    @Override
-    public AnimeDetail getAnimeDetail(String detailUrl) throws Exception {
-        String fullUrl = baseUrl + detailUrl;
-        OkHttpClient client = HttpUtil.getClient();
-        Request request = HttpUtil.getRequest(fullUrl);
+  override fun getPlayInfo(episodeId: String?): PlayInfo? {
+    val fullUrl = "$baseUrl$episodeId"
+    val client = HttpUtil.getClient()
+    val request = HttpUtil.getRequest(fullUrl)
+    val response = client.newCall(request).execute()
+    val html = ValidateUtil.validateResponse(response)
+    if (html == null) return null
+    val doc = Jsoup.parse(html)
+    val scriptElements = doc.getElementsByTag("script")
+    var playerData: String? = null
+    for (script in scriptElements) {
+      val scriptText = script.data()
+      if (scriptText.contains("player_aaaa")) {
+        playerData = scriptText
+        break
+      }
+    }
+    val jsonStr = extractJsonFromScript(playerData)
+    if (jsonStr == null) return null
+    val player = JSON.parseObject(jsonStr, PlayerData::class.java)
+    val playInfo = PlayInfo().apply {
+      currentEpisodeUrl = decodeUrl(player.url!!)
+      nextEpisodeUrl = decodeUrl(player.url_next!!)
+    }
+    return playInfo
+  }
 
-        try (Response response = client.newCall(request).execute()) {
-            String s = ValidateUtil.validateResponse(response);
-            if (s == null) {
-                return null;
-            }
-            Document document = Jsoup.parse(s);
-            Elements detailDiv = document.select("div.vod-detail.style-detail");
-            String coverImg = detailDiv.select("img.lazy.lazy1.mask-1").attr("data-src");
-            String title = detailDiv.select("h3.slide-info-name").text();
-            String part1 = Optional.ofNullable(detailDiv.select("div.slide-info span.slide-info-remarks").first()).orElse(new Element("empty")).text();
-            String part2 = detailDiv.select("div.slide-info a").stream().map(Element::text).collect(Collectors.joining("•"));
-            String status = part2 + part1;
-            String director = detailDiv.select("div.slide-info").get(1).select("a").stream().map(Element::text).collect(Collectors.joining("•"));
-            String actor = detailDiv.select("div.slide-info").get(2).select("a").stream().map(Element::text).collect(Collectors.joining("•"));
-            String type = detailDiv.select("a.deployment.none.cor5 span").stream().map(Element::text).collect(Collectors.joining());
-            String description = detailDiv.select("div#height_limit").text().replaceAll(blankReg, "");
-            Elements listBoxDiv = document.select("div.anthology-list-box.none");
-            List<Source> sources = new ArrayList<>();
-            for (Element element : listBoxDiv) {
-                Source source = new Source();
-                List<Episode> episodes = element.select("a").stream().map(item -> new Episode(item.attr("href"), null, item.text(), item.text(), item.attr("href"), null, null)).collect(Collectors.toList());
-                source.setEpisodes(episodes);
-                sources.add(source);
-            }
-            AnimeDetail animeDetail = new AnimeDetail();
-            animeDetail.setSources(sources);
-            Anime anime = new Anime();
-            anime.setId(detailUrl);
-            anime.setName(title);
-            anime.setDescription(description);
-            anime.setDirector(director);
-            anime.setActor(actor);
-            anime.setType(type);
-            anime.setStatus(status);
-            anime.setCoverUrl(coverImg);
-            animeDetail.setAnime(anime);
-            return animeDetail;
-        } catch (IOException e) {
-//            log.error("获取视频详情失败: {}", e.getMessage());
-            throw new Exception("获取视频详情失败", e);
+  override fun getRecommendations(html: String?): String? {
+    return null
+  }
+
+  override fun weeklySchedule(): List<Schedule> {
+    val client = HttpUtil.getClient()
+    val request = HttpUtil.getRequest(baseUrl)
+
+    val response = client.newCall(request).execute()
+    val s = ValidateUtil.validateResponse(response)
+    if (s == null) return emptyList()
+    val document = Jsoup.parse(s)
+    val schedules = ArrayList<Schedule>()
+    for (i in 0 until 7) {
+      val schedule = Schedule().apply {
+        day = i + 1
+        anime = ArrayList()
+      }
+      val week = "div#week-module-" + (i + 1)
+      val listBox = document.select("$week div.public-list-box")
+      for (box in listBox) {
+        val temp = box.select("a.public-list-exp")
+        val href = temp.attr("href")
+        val title = temp.attr("name")
+        val coverImg = box.select("img.lazy.gen-movie-img").attr("data-src")
+        val status = box.select("div.public-list-subtitle").text().replace(blankReg.toRegex(), "")
+
+        val anime = Anime().apply {
+          id = href
+          name = title
+          coverUrl = if (coverImg.contains("http")) coverImg else "$baseUrl$coverImg"
         }
+        anime.status = status
+        schedule.anime?.add(anime)
+      }
+      schedules.add(schedule)
     }
+    return schedules
+  }
 
-    /**
-     * 获取剧集对应的视频播放信息
-     *
-     * @param episodeUrl 剧集页url
-     * @return PlayInfo
-     */
-    @Override
-    public PlayInfo getPlayInfo(String episodeUrl) throws Exception {
-        String fullUrl = baseUrl + episodeUrl;
-        OkHttpClient client = HttpUtil.getClient();
-        Request request = HttpUtil.getRequest(fullUrl);
+  private fun decodeUrl(encodedUrl: String): String {
+    if (encodedUrl.isEmpty()) return encodedUrl
 
-        try (Response response = client.newCall(request).execute()) {
-            String html = ValidateUtil.validateResponse(response);
-            if (html == null) {
-                return null;
-            }
-            Document doc = Jsoup.parse(html);
-            Elements scriptElements = doc.getElementsByTag("script");
-            String playerData = null;
-            for (Element script : scriptElements) {
-                String scriptText = script.data();
-                if (scriptText.contains("player_aaaa")) {
-                    playerData = scriptText;
-//                    log.info("找到包含player_aaaa的script标签");
-                    break;
-                }
-            }
-            String jsonStr = extractJsonFromScript(playerData);
-            if (jsonStr == null) {
-//                log.error("无法从script中提取JSON数据");
-                return null;
-            }
-            PlayerData player = JSON.parseObject(jsonStr, PlayerData.class);
-            PlayInfo playInfo = new PlayInfo();
-            String decodeUrl = decodeUrl(player.getUrl());
-            String decodeNextUrl = decodeUrl(player.getUrl_next());
-            playInfo.setCurrentEpisodeUrl(decodeUrl);
-            playInfo.setNextEpisodeUrl(decodeNextUrl);
-            return playInfo;
-        } catch (IOException e) {
-//            log.error("获取播放信息失败: {}", e.getMessage());
-            throw new RuntimeException("获取播放信息失败", e);
-        }
-    }
-
-    @Override
-    public String getRecommendations(String html) throws Exception {
-        return null;
-    }
-
-    /**
-     * 获取本周的番剧更新表
-     *
-     * @return List<Schedule>
-     */
-    @Override
-    public List<Schedule> getWeeklySchedule() throws Exception {
-        OkHttpClient client = HttpUtil.getClient();
-        Request request = HttpUtil.getRequest(baseUrl);
-
-        try (Response response = client.newCall(request).execute()) {
-            String s = ValidateUtil.validateResponse(response);
-            if (s == null) {
-                return new ArrayList<>();
-            }
-            List<Schedule> schedules = new ArrayList<>();
-            Document document = Jsoup.parse(s);
-            for (int i = 0; i < 7; i++) {
-                Schedule schedule = new Schedule();
-                schedule.setDay(i + 1);
-                schedule.setAnime(new ArrayList<>());
-                String week = "div#week-module-" + (i + 1);
-                Elements listBox = document.select(week + " div.public-list-box");
-                for (Element box : listBox) {
-//                    Elements tempBox = box.select("div.public-list-div");
-                    Elements temp = box.select("a.public-list-exp");
-                    String href = temp.attr("href");
-                    String title = temp.attr("name");
-                    String coverImg = box.select("img.lazy.gen-movie-img").attr("data-src");
-                    Elements status = box.select("div.public-list-subtitle");
-                    Anime anime = new Anime();
-                    anime.setId(href);
-                    anime.setName(title);
-                    anime.setCoverUrl(coverImg.contains("http") ? coverImg : baseUrl + coverImg);
-                    anime.setStatus(status.text().replaceAll(blankReg, ""));
-                    schedule.getAnime().add(anime);
-                }
-                schedules.add(schedule);
-            }
-            return schedules;
-        } catch (IOException e) {
-//            log.error("获取周更表失败: {}", e.getMessage());
-            throw new Exception("获取周更表失败", e);
-        }
-    }
-
-
-    /**
-     * 解码URL（处理base64等编码）
-     *
-     * @param encodedUrl 编码的URL
-     * @return 解码后的URL
-     */
-    private String decodeUrl(String encodedUrl) {
-        if (encodedUrl.isEmpty()) {
-            return encodedUrl;
-        }
-//        log.info("原始URL: {}", encodedUrl);
-        String decodedUrl;
+    var decodedUrl: String
+    try {
+      // 首先尝试Base64解码
+      try {
+        val decodedBytes = Base64.getDecoder().decode(encodedUrl)
+        decodedUrl = String(decodedBytes, StandardCharsets.UTF_8)
+      } catch (base64Exception: Exception) {
+        Log.d("decodeUrl", "Base64 decoding failed: $base64Exception")
+        // 如果Base64解码失败，则尝试URL解码
         try {
-            // 首先尝试Base64解码
-            try {
-                byte[] decodedBytes = java.util.Base64.getDecoder().decode(encodedUrl);
-                decodedUrl = new String(decodedBytes, StandardCharsets.UTF_8);
-            } catch (Exception base64Exception) {
-//                log.error("Base64解码失败，尝试URL解码");
-                // 如果Base64解码失败，则尝试URL解码
-                try {
-                    decodedUrl = java.net.URLDecoder.decode(encodedUrl, "UTF-8");
-
-                } catch (Exception urlException) {
-//                    log.error("URL解码失败，保留原始URL");
-                    decodedUrl = encodedUrl;
-                }
-            }
-            // 再次尝试URL解码（以防是双重编码）
-            try {
-                String doubleDecodedUrl = java.net.URLDecoder.decode(decodedUrl, "UTF-8");
-                // 只有当解码后的内容不同时才更新
-                if (!doubleDecodedUrl.equals(decodedUrl)) {
-                    decodedUrl = doubleDecodedUrl;
-                }
-            } catch (Exception e) {
-//                log.error("二次URL解码失败，保留之前的结果");
-                // 保持第一次解码的结果
-            }
-            return decodedUrl;
-        } catch (Exception e) {
-//            log.error("URL解码过程中发生错误: {}", encodedUrl, e);
-            return encodedUrl; // 解码失败时返回原始URL
+          decodedUrl = URLDecoder.decode(encodedUrl, "UTF-8")
+        } catch (urlException: Exception) {
+          Log.d("decodeUrl", "URL decoding failed: $urlException")
+          decodedUrl = encodedUrl
         }
-    }
+      }
 
-    /**
-     * 从script标签中提取JSON数据
-     *
-     * @param scriptText script标签内容
-     * @return JSON字符串
-     */
-    private String extractJsonFromScript(String scriptText) {
-        if (scriptText == null) {
-            return null;
+      // 再次尝试URL解码（以防是双重编码）
+      try {
+        val doubleDecodedUrl = URLDecoder.decode(decodedUrl, "UTF-8")
+        if (!doubleDecodedUrl.equals(decodedUrl)) {
+          decodedUrl = doubleDecodedUrl
         }
-        Pattern pattern = Pattern.compile("var\\s+player_aaaa\\s*=\\s*(\\{.*?\\})\\s*;");
-        Matcher matcher = pattern.matcher(scriptText);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-        // 如果上面的模式没匹配到，尝试另一种模式
-        pattern = Pattern.compile("var\\s+player_aaaa\\s*=\\s*(\\{.*?\\})\\s*$");
-        matcher = pattern.matcher(scriptText);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-        return null;
+      } catch (e: Exception) {
+        // 保持第一次解码的结果
+        Log.d("decodeUrl", "Double URL decoding failed: $e")
+      }
+      return decodedUrl
+    } catch (e: Exception) {
+      Log.d("decodeUrl", "Decoding failed: $e")
+      return encodedUrl // 解码失败时返回原始URL
     }
+  }
 
-    @Override
-    public @NotNull String getName() {
-        return "";
-    }
+  private fun extractJsonFromScript(scriptText: String?): String? {
+    if (scriptText == null) return null
 
-    @Override
-    public @NotNull String getLogoUrl() {
-        return "";
+    val pattern = Pattern.compile("var\\s+player_aaaa\\s*=\\s*(\\{.*?\\})\\s*;")
+    val matcher = pattern.matcher(scriptText)
+    if (matcher.find()) {
+      return matcher.group(1)
     }
-
-    @Override
-    public @Nullable List<@Nullable Schedule> weeklySchedule() throws Exception {
-        return Collections.emptyList();
+    // 如果上面的模式没匹配到，尝试另一种模式
+    val pattern2 = Pattern.compile("var\\s+player_aaaa\\s*=\\s*(\\{.*?\\})\\s*$")
+    val matcher2 = pattern2.matcher(scriptText)
+    if (matcher2.find()) {
+      return matcher2.group(1)
     }
+    return null
+  }
 }
+
+

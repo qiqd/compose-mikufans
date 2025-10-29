@@ -13,5 +13,6 @@ data class History(
   var episodeId: String? = null,
   var episodeIndex: Int? = null,
   var position: Long? = null,
-  var time: Long? = null
+  var time: Long? = null,
+  val source: String? = null,
 ) : Serializable

@@ -1,6 +1,7 @@
 package com.mikufans.xmd.miku.entiry
 
-class Page<T> {
+
+class Page<T> : java.io.Serializable {
   val pageNum: Int? = null
   val pageSize: Long? = null
   val totalPage: Long? = null

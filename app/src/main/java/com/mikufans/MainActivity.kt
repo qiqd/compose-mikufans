@@ -171,12 +171,21 @@ fun MainScreen(activity: ComponentActivity) {
           baseHorizontalPadding,
         )
       }
-      composable(Navigation.ANIME_DETAIL + "/{animeId}/{animeSubId}/{animeName}") { backStackEntry ->
+      composable(Navigation.ANIME_DETAIL + "/{animeId}/{animeSubId}/{animeName}/{source}") { backStackEntry ->
         var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
         animeId = URLDecoder.decode(animeId, "UTF-8")
         val animeName = backStackEntry.arguments?.getString("animeName") ?: ""
         val animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
-        DetailPage(animeId, animeSubId.toInt(), animeName, navController, baseHorizontalPadding)
+        var source = backStackEntry.arguments?.getString("source") ?: ""
+        source = URLDecoder.decode(source, "UTF-8")
+        DetailPage(
+          animeId,
+          source,
+          animeSubId.toInt(),
+          animeName,
+          navController,
+          baseHorizontalPadding
+        )
       }
       composable(Navigation.ANIME_PLAYER + "/{animeId}/{animeSubId}/{subject}/{episodes}") { backStackEntry ->
         var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"

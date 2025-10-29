@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -41,11 +42,14 @@ import androidx.compose.material.icons.automirrored.filled.NavigateBefore
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.ImageAspectRatio
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -100,6 +104,7 @@ import com.mikufans.view.CapPlayerViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
 
 private var currentUrl = ""
 
@@ -148,14 +153,16 @@ fun CapVideoPlayer(
   var controllerHideJob by remember { mutableStateOf<Job?>(null) }
   val scope = rememberCoroutineScope()
   var resizeMode by rememberSaveable { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
+  var playbackSpeed by rememberSaveable { mutableFloatStateOf(1f) }
   val capPlayerViewModel: CapPlayerViewModel = viewModel()
+  var controllerLocked by rememberSaveable { mutableStateOf(false) }
   val exoPlayer = remember {
     capPlayerViewModel.getPlayer(current) { exception ->
       onPlayerError(exception)
     }
   }
 
-//初次加载播放器
+// 初次加载播放器
   LaunchedEffect(videoUrl) {
     if (currentUrl == videoUrl) return@LaunchedEffect
     val url = videoUrl ?: playList.getOrNull(episodeIndex) ?: return@LaunchedEffect
@@ -165,7 +172,7 @@ fun CapVideoPlayer(
     exoPlayer.playWhenReady = true
     currentUrl = url
   }
-  // 2. 切换视频时更换 MediaItem，不会重建播放器
+  // 切换视频时更换 MediaItem，不会重建播放器
   LaunchedEffect(currentEpisodeIndex) {
     val newUrl = videoUrl ?: playList.getOrNull(currentEpisodeIndex) ?: return@LaunchedEffect
     if (initPosition == 0L) {
@@ -200,9 +207,9 @@ fun CapVideoPlayer(
     onLeadingBackButtonTab()
     onLandscapeChange(isLandscape)
     Orientation.forceOrientation(current, false)
-  }/* ① 同步系统栏隐藏/显示 */
+  }
+  // 同步系统栏隐藏/显示
   LaunchedEffect(isLandscape) {
-
     val insetsController = WindowInsetsControllerCompat(window, window.decorView)
     if (!isLandscape) {
       // 退出沉浸：显示状态栏+导航栏
@@ -215,7 +222,7 @@ fun CapVideoPlayer(
         WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
   }
-
+// 显示/隐藏控制栏 （播放时自动隐藏，5秒无操作后显示）
   LaunchedEffect(isPlaying, showVideoController) {
     if (!isPlaying || !showVideoController) {
       controllerHideJob?.cancel()
@@ -290,24 +297,36 @@ fun CapVideoPlayer(
       )
     ) {
       //头部：返回按钮+标题
-      AnimatedVisibility(visible = showVideoController && showHeader) {
+      AnimatedVisibility(visible = showVideoController && showHeader && !controllerLocked) {
         Row(
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-          IconButton(onClick = {
-            if (isLandscape) {
-              isLandscape = false
-              Orientation.forceOrientation(current, false)
-            } else {
-              navController?.popBackStack()
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start,
+            modifier = Modifier.weight(1f)
+          ) {
+            IconButton(onClick = {
+              if (isLandscape) {
+                isLandscape = false
+                Orientation.forceOrientation(current, false)
+              } else {
+                navController?.popBackStack()
+              }
+            }) {
+              Icon(
+                imageVector = Icons.AutoMirrored.Filled.NavigateBefore, contentDescription = "Back"
+              )
             }
-          }) {
-            Icon(
-              imageVector = Icons.AutoMirrored.Filled.NavigateBefore, contentDescription = "Back"
-            )
+            Text(text = title)
           }
-          Text(text = title)
+          if (isLandscape()) {
+            Row(modifier = Modifier.wrapContentWidth()) {
+              Text(text = "${LocalDateTime.now().hour}:${LocalDateTime.now().minute}")
+            }
+            Row(modifier = Modifier.weight(1f)) {}
+          }
         }
       }
       //中间：
@@ -335,6 +354,8 @@ fun CapVideoPlayer(
           }) {
         //左侧：左半部分垂直手势监听控制画面亮度
         Column(
+          horizontalAlignment = Alignment.Start,
+          verticalArrangement = Arrangement.Center,
           modifier = Modifier
             .weight(1f)
             .fillMaxSize()
@@ -373,7 +394,22 @@ fun CapVideoPlayer(
                 mediaPropertyChangeText = "亮度: ${brightnessPercent}%"
 
               }
-            }) {}
+            }) {
+          AnimatedVisibility(
+            visible = showVideoController && isLandscape, enter = fadeIn(), exit = fadeOut()
+          ) {
+            IconButton(
+              modifier = Modifier
+                .clip(CircleShape),
+              onClick = { controllerLocked = !controllerLocked }
+            ) {
+              Icon(
+                imageVector = if (controllerLocked) Icons.Filled.Lock else Icons.Filled.LockOpen,
+                contentDescription = "锁定/解锁控制器"
+              )
+            }
+          }
+        }
         //右侧：右半部分控制音量
         Column(
           modifier = Modifier
@@ -415,6 +451,7 @@ fun CapVideoPlayer(
                 mediaPropertyChangeText = "音量: ${volumePercent}%"
               }
             }) {
+          // 显示/隐藏剧集列表
           AnimatedVisibility(
             visible = showEpisodeList && playList.isNotEmpty(),
             enter = slideInHorizontally { it } + fadeIn(),
@@ -456,8 +493,8 @@ fun CapVideoPlayer(
         }
       }
 
-      ////控制器底部1:播放进度条
-      AnimatedVisibility(visible = showVideoController) {
+      //控制器底部1:播放进度条
+      AnimatedVisibility(visible = showVideoController && !controllerLocked) {
         Row(
           modifier = Modifier
             .fillMaxWidth()
@@ -494,7 +531,7 @@ fun CapVideoPlayer(
       }
       Spacer(modifier = Modifier.height(1.dp))
       //控制器底部2：播放/暂停、上一个、下一个、进度条、全屏
-      AnimatedVisibility(visible = showVideoController) {
+      AnimatedVisibility(visible = showVideoController && !controllerLocked) {
         Row(
           modifier = Modifier
 //          .background(Color.Red)
@@ -571,74 +608,100 @@ fun CapVideoPlayer(
           //画面尺寸按钮
           AnimatedVisibility(visible = isLandscape) {
             Row {
-              IconButton(
-                onClick = {
-                  isAspectMenuOpen = !isAspectMenuOpen
-                }, modifier = Modifier
-                  .size(40.dp)
-                  .padding(end = 8.dp)
+              BadgedBox(
+                badge = {
+                  Text(
+                    text = when (resizeMode) {
+                      AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH -> "16:9"
+                      AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT -> "4:3"
+                      AspectRatioFrameLayout.RESIZE_MODE_FILL -> "填充"
+                      AspectRatioFrameLayout.RESIZE_MODE_FIT -> "适应"
+                      else -> ""
+                    },
+                    fontSize = MaterialTheme.typography.titleSmall.fontSize
+                  )
+                }
               ) {
-                Icon(Icons.Default.ImageAspectRatio, contentDescription = "Change aspect ratio")
-              }
+                IconButton(
+                  onClick = {
+                    isAspectMenuOpen = !isAspectMenuOpen
+                  }, modifier = Modifier
+                    .size(40.dp)
+                ) {
+                  Icon(Icons.Default.ImageAspectRatio, contentDescription = "Change aspect ratio")
+                }
 
-              DropdownMenu(
-                properties = PopupProperties(focusable = false),
-                expanded = isAspectMenuOpen,
-                onDismissRequest = { isAspectMenuOpen = false }) {
-                DropdownMenuItem(text = { Text("16:9") }, onClick = {
-                  resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
-                  isAspectMenuOpen = false
-                })
-                DropdownMenuItem(text = { Text("4:3") }, onClick = {
-                  resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT
-                  isAspectMenuOpen = false
-                })
-                DropdownMenuItem(text = { Text("填充") }, onClick = {
-                  resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
-                  isAspectMenuOpen = false
-                })
-                DropdownMenuItem(text = { Text("适应") }, onClick = {
-                  resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                  isAspectMenuOpen = false
-                })
-              }
+                DropdownMenu(
+                  properties = PopupProperties(focusable = false),
+                  expanded = isAspectMenuOpen,
+                  onDismissRequest = { isAspectMenuOpen = false }) {
+                  DropdownMenuItem(text = { Text("16:9") }, onClick = {
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+                    isAspectMenuOpen = false
+                  })
+                  DropdownMenuItem(text = { Text("4:3") }, onClick = {
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT
+                    isAspectMenuOpen = false
+                  })
+                  DropdownMenuItem(text = { Text("填充") }, onClick = {
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
+                    isAspectMenuOpen = false
+                  })
+                  DropdownMenuItem(text = { Text("适应") }, onClick = {
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    isAspectMenuOpen = false
+                  })
+                }
 
+              }
             }
           }
           //倍速按钮
           AnimatedVisibility(visible = isLandscape) {
             Row {
-              IconButton(
-                onClick = { isSpeedMenuOpen = !isSpeedMenuOpen },
-                modifier = Modifier
-                  .size(40.dp)
-                  .padding(end = 8.dp)
+              BadgedBox(
+                badge = {
+                  Text(
+                    text = "${playbackSpeed}x",
+                    fontSize = MaterialTheme.typography.titleSmall.fontSize
+                  )
+                }
               ) {
-                Icon(Icons.Default.Speed, contentDescription = "Change speed")
-              }
+                IconButton(
+                  onClick = { isSpeedMenuOpen = !isSpeedMenuOpen },
+                  modifier = Modifier
+                    .size(40.dp)
+                ) {
+                  Icon(Icons.Default.Speed, contentDescription = "Change speed")
+                }
 
-              DropdownMenu(
-                properties = PopupProperties(focusable = false),
-                expanded = isSpeedMenuOpen,
-                onDismissRequest = { isSpeedMenuOpen = false }) {
-                DropdownMenuItem(text = { Text("0.5x") }, onClick = {
-                  exoPlayer.setPlaybackSpeed(0.5f)
-                  isSpeedMenuOpen = false
-                })
-                DropdownMenuItem(text = { Text("1.0x") }, onClick = {
-                  exoPlayer.setPlaybackSpeed(1.0f)
-                  isSpeedMenuOpen = false
-                })
-                DropdownMenuItem(text = { Text("1.5x") }, onClick = {
-                  exoPlayer.setPlaybackSpeed(1.5f)
-                  isSpeedMenuOpen = false
-                })
-                DropdownMenuItem(text = { Text("2.0x") }, onClick = {
-                  exoPlayer.setPlaybackSpeed(2.0f)
-                  isSpeedMenuOpen = false
-                })
-              }
+                DropdownMenu(
+                  properties = PopupProperties(focusable = false),
+                  expanded = isSpeedMenuOpen,
+                  onDismissRequest = { isSpeedMenuOpen = false }) {
+                  DropdownMenuItem(text = { Text("0.5x") }, onClick = {
+                    exoPlayer.setPlaybackSpeed(0.5f)
+                    playbackSpeed = 0.5f
+                    isSpeedMenuOpen = false
+                  })
+                  DropdownMenuItem(text = { Text("1.0x") }, onClick = {
+                    exoPlayer.setPlaybackSpeed(1.0f)
+                    playbackSpeed = 1.0f
+                    isSpeedMenuOpen = false
+                  })
+                  DropdownMenuItem(text = { Text("1.5x") }, onClick = {
+                    exoPlayer.setPlaybackSpeed(1.5f)
+                    playbackSpeed = 1.5f
+                    isSpeedMenuOpen = false
+                  })
+                  DropdownMenuItem(text = { Text("2.0x") }, onClick = {
+                    exoPlayer.setPlaybackSpeed(2.0f)
+                    playbackSpeed = 2.0f
+                    isSpeedMenuOpen = false
+                  })
+                }
 
+              }
             }
           }
           IconButton(onClick = {

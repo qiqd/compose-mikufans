@@ -53,6 +53,12 @@ fun WeeklyPage(
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   var weekly by rememberSaveable { mutableStateOf(List<Schedule?>(7) { null }) }
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
+  val todayIndex = remember {
+    val calendar = java.util.Calendar.getInstance()
+    val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+    // 转换为 0-6 格式（星期一到星期日）
+    (dayOfWeek + 5) % 7
+  }
   BackHandler { activity.moveTaskToBack(true) }
   LaunchedEffect(Unit) {
     isLoading = true
@@ -70,7 +76,11 @@ fun WeeklyPage(
     } finally {
       isLoading = false
     }
-
+  }
+  LaunchedEffect(todayIndex) {
+    coroutineScope.launch {
+      pagerState.animateScrollToPage(todayIndex)
+    }
   }
   Scaffold(
     modifier = Modifier.padding(horizontal = baseHorizontalPadding),

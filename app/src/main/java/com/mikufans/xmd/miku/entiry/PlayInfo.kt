@@ -1,5 +1,6 @@
 package com.mikufans.xmd.miku.entiry
 
+
 data class PlayInfo(
   var id: Int? = null,
   var episodeId: String? = null,

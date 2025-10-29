@@ -12,9 +12,9 @@ import com.mikufans.xmd.miku.entiry.Source
 import com.mikufans.xmd.miku.service.HtmlParser
 import com.mikufans.xmd.util.HttpUtil
 import com.mikufans.xmd.util.ValidateUtil
-import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
+import java.io.Serializable
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.util.Base64
@@ -23,8 +23,7 @@ import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-@Serializable
-class AAfun : HtmlParser {
+class AAfun : HtmlParser, Serializable {
   override val name: String = "风铃动漫"
   override val logoUrl: String = "https://p.upyun.com/demo/tmp/Hds66ovM.png"
   override val baseUrl: String = "https://www.aafun.cc"
@@ -241,7 +240,7 @@ class AAfun : HtmlParser {
             coverUrl = a.attr("data-original")
           }
         }
-        schedules.add(Schedule(i, anime))
+        schedules.add(Schedule(i, anime.toMutableList()))
       }
       return schedules
     }

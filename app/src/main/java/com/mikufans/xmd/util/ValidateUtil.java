@@ -14,7 +14,7 @@ public class ValidateUtil {
     public static String validateResponse(@NotNull Response response) throws IOException {
         if (!response.isSuccessful() || response.body() == null) {
 //            log.error("Network request failed with status code: {}", response.code());
-            throw new RuntimeException("Network request failed");
+            throw new RuntimeException("validate response failed with status code: " + response.code());
         }
         String body = response.body().string();
         Pattern pattern = Pattern.compile("\\\\u[0-9a-fA-F]{4}");

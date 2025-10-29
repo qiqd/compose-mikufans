@@ -4,12 +4,13 @@ import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.AnimeDetail
 import com.mikufans.xmd.miku.entiry.PlayInfo
 import com.mikufans.xmd.miku.entiry.Schedule
+import java.io.Serializable
 
 
 /**
  * HTML解析接口规范
  */
-interface HtmlParser {
+interface HtmlParser : Serializable {
   /**
    * 名称
    */

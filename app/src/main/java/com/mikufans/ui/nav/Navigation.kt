@@ -16,12 +16,14 @@ object Navigation {
   fun navigateToAnimeDetail(
     navController: NavController,
     animeId: String? = "",
+    playSource: String = "",
     animeSubId: String,
     animeName: String
   ) {
     val animeId = URLEncoder.encode(animeId, "UTF-8")
     val animeSubId = URLEncoder.encode(animeSubId, "UTF-8")
-    navController.navigate("$ANIME_DETAIL/$animeId/$animeSubId/$animeName") {
+    val source = URLEncoder.encode(playSource, "UTF-8")
+    navController.navigate("$ANIME_DETAIL/$animeId/$animeSubId/$animeName/$source") {
       launchSingleTop = true
       restoreState = true
     }

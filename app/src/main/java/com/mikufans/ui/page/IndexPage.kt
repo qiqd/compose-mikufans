@@ -4,14 +4,18 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -20,8 +24,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Source
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -43,13 +49,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.mikufans.R
 import com.mikufans.ui.component.AnimeCard
 import com.mikufans.ui.nav.Navigation
+import com.mikufans.util.GifLoader
 import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.WebsiteDelay
 import com.mikufans.xmd.teto.service.impl.RedDrillBit
@@ -81,7 +92,7 @@ fun IndexPage(
   var showBottomSheet by rememberSaveable { mutableStateOf(false) }
   val sheetState = rememberModalBottomSheetState()
   val scope = rememberCoroutineScope()
-  val allSource = SourceUtil.SOURCES
+  val allSource = SourceUtil.getSourceWithDelay()
   BackHandler { activity.moveTaskToBack(true) }
   LaunchedEffect(Unit) {
     if (sources.isNotEmpty()) return@LaunchedEffect
@@ -96,35 +107,27 @@ fun IndexPage(
         }
         withContext(Dispatchers.Main) {
           Toast.makeText(
-            navController.context,
-            "初始化资源完成",
-            Toast.LENGTH_SHORT
+            navController.context, "初始化资源完成", Toast.LENGTH_SHORT
           ).show()
         }
       } catch (e: TimeoutCancellationException) {
         Log.e("IndexPage-Init", "初始化资源超时", e)
         withContext(Dispatchers.Main) {
           Toast.makeText(
-            navController.context,
-            "初始化资源失败",
-            Toast.LENGTH_SHORT
+            navController.context, "初始化资源失败", Toast.LENGTH_SHORT
           ).show()
         }
       } catch (e: IOException) {
         e.printStackTrace()
         withContext(Dispatchers.Main) {
           Toast.makeText(
-            navController.context,
-            "网络无法使用",
-            Toast.LENGTH_SHORT
+            navController.context, "网络无法使用", Toast.LENGTH_SHORT
           ).show()
         }
       } catch (e: Exception) {
         withContext(Dispatchers.Main) {
           Toast.makeText(
-            navController.context,
-            e.message,
-            Toast.LENGTH_SHORT
+            navController.context, e.message, Toast.LENGTH_SHORT
           ).show()
         }
       }
@@ -133,66 +136,21 @@ fun IndexPage(
   Scaffold(
     modifier = Modifier.padding(horizontal = baseHorizontalPadding),
     topBar = {
-      TopAppBar(
-        title = { Text("首页") },
-        actions = {
-          IconButton(onClick = {
-            scope.launch { sheetState.show() }.invokeOnCompletion {
-              if (!sheetState.isVisible) {
-                showBottomSheet = true
-              }
-            }
-          }) {
-            Icon(
-              imageVector = Icons.Default.Source,
-              contentDescription = "切换资源"
-            )
-          }
+      TopAppBar(title = { Text("首页") }, actions = {
+        IconButton(onClick = {
+          Log.i("IndexPage-TopBar", "点击切换资源")
+          scope.launch { sheetState.show() }
+          showBottomSheet = true
+        }) {
+          Icon(
+            imageVector = Icons.Default.Source, contentDescription = "切换资源"
+          )
         }
-      )
+      })
     },
   ) { innerPadding ->
-    ModalBottomSheet(
-      onDismissRequest = {
-        showBottomSheet = false
-      },
-      sheetState = sheetState
-    ) {
-//      LazyColumn {
-//        items(allSource.size) { source ->
-//          ListItem(
-//            modifier = Modifier.clickable {
-//              showBottomSheet = false
-//              scope.launch {
-//                sheetState.hide()
-//              }
-//            },
-//            tonalElevation = 2.dp,
-//            colors = ListItemDefaults.colors(
-//              containerColor = MaterialTheme.colorScheme.surfaceVariant
-//            ),
-//            leadingContent = {
-//              AsyncImage(
-//                modifier = Modifier
-//                  .fillMaxHeight()
-//                  .aspectRatio(2.5f / 3f)
-//                  .clip(MaterialTheme.shapes.medium),
-//                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-//                model = sources[source].,
-//                contentDescription = anime?.name ?: "暂无标题",
-//                placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current),
-//              )
-//            },
-//            headlineContent = {
-//              Text(sources[source].domain)
-//            }
-//          )
-//        }
-//      }
-    }
     Column(
-      modifier = Modifier
-        .padding(innerPadding)
+      modifier = Modifier.padding(innerPadding)
     ) {
       TextField(
         modifier = Modifier
@@ -231,9 +189,7 @@ fun IndexPage(
                 Log.e("IndexPage-Search", "搜索失败", e)
                 withContext(Dispatchers.Main) {
                   Toast.makeText(
-                    navController.context,
-                    "搜索失败:${e.message}",
-                    Toast.LENGTH_SHORT
+                    navController.context, "搜索失败:${e.message}", Toast.LENGTH_SHORT
                   ).show()
                 }
               } finally {
@@ -256,40 +212,34 @@ fun IndexPage(
         }
       }
 
-      PullToRefreshBox(
-        state = pullToRefreshState,
-        isRefreshing = isRefreshing,
-        indicator = {
-          Indicator(
-            modifier = Modifier.align(Alignment.TopCenter),
-            isRefreshing = isRefreshing,
-            color = MaterialTheme.colorScheme.primary,
-            state = pullToRefreshState
-          )
-        },
-        onRefresh = {
-          coroutineScope.launch(Dispatchers.IO) {
-            try {
-              isRefreshing = true
-              while (SourceUtil.getSourceWithDelay().isEmpty()) {
-                SourceUtil.initSources()
-              }
-              delay(2000L)
-            } catch (e: Exception) {
-              // 错误处理
-              Log.e("IndexPage-Refresh", "刷新失败", e)
-            } finally {
-              isRefreshing = false
+      PullToRefreshBox(state = pullToRefreshState, isRefreshing = isRefreshing, indicator = {
+        Indicator(
+          modifier = Modifier.align(Alignment.TopCenter),
+          isRefreshing = isRefreshing,
+          color = MaterialTheme.colorScheme.primary,
+          state = pullToRefreshState
+        )
+      }, onRefresh = {
+        coroutineScope.launch(Dispatchers.IO) {
+          try {
+            isRefreshing = true
+            while (SourceUtil.getSourceWithDelay().isEmpty()) {
+              SourceUtil.initSources()
             }
+            delay(2000L)
+          } catch (e: Exception) {
+            // 错误处理
+            Log.e("IndexPage-Refresh", "刷新失败", e)
+          } finally {
+            isRefreshing = false
           }
         }
-      ) {
+      }) {
         LazyColumn(
           state = lazyGridState,
           contentPadding = PaddingValues(vertical = 5.dp),
           verticalArrangement = Arrangement.spacedBy(5.dp),
-          modifier = Modifier
-            .fillMaxSize()
+          modifier = Modifier.fillMaxSize()
         ) {
           items(searchResult.size) { index ->
             AnimeCard(anime = searchResult[index]) { animeId, animeName ->
@@ -302,7 +252,50 @@ fun IndexPage(
           }
         }
       }
-
+    }
+    if (showBottomSheet) {
+      ModalBottomSheet(
+        onDismissRequest = {
+          showBottomSheet = false
+        },
+        sheetState = sheetState
+      ) {
+        LazyColumn {
+          itemsIndexed(
+            items = allSource.toList(),
+          ) { index, item ->
+            ListItem(
+              modifier = Modifier.clickable {
+                showBottomSheet = false
+                scope.launch {
+                  SourceUtil.moveDelayToFirst(index)
+                  sheetState.hide()
+                }
+              },
+              tonalElevation = 2.dp,
+              leadingContent = {
+                AsyncImage(
+                  modifier = Modifier
+                    .height(150.dp)
+                    .aspectRatio(2.5f / 3f)
+                    .clip(MaterialTheme.shapes.medium),
+                  contentScale = ContentScale.Fit,
+                  model = item.service.logoUrl,
+                  contentDescription = item.service.name,
+                  placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current),
+                )
+              },
+              headlineContent = {
+                Text(item.service.name)
+              },
+              supportingContent = {
+                Text("延迟: ${item.delay}ms")
+              }
+            )
+            HorizontalDivider()
+          }
+        }
+      }
     }
   }
 }

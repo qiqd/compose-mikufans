@@ -1,91 +1,74 @@
-package com.mikufans.xmd.miku.service.impl;
+package com.mikufans.xmd.miku.service.impl
 
-import com.mikufans.xmd.miku.entiry.Anime;
-import com.mikufans.xmd.miku.entiry.AnimeDetail;
-import com.mikufans.xmd.miku.entiry.PlayInfo;
-import com.mikufans.xmd.miku.entiry.Schedule;
-import com.mikufans.xmd.miku.service.CommonTemplate;
-import com.mikufans.xmd.util.HttpUtil;
-import com.mikufans.xmd.util.ValidateUtil;
-
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.StringJoiner;
-import java.util.stream.Collectors;
-
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import com.mikufans.xmd.miku.entiry.Anime
+import com.mikufans.xmd.miku.entiry.AnimeDetail
+import com.mikufans.xmd.miku.entiry.PlayInfo
+import com.mikufans.xmd.miku.entiry.Schedule
+import com.mikufans.xmd.miku.service.CommonTemplate
+import com.mikufans.xmd.util.HttpUtil
+import com.mikufans.xmd.util.ValidateUtil
+import org.jsoup.Jsoup
+import java.io.Serializable
 
 
-public class Girigirilove extends CommonTemplate implements Serializable {
-    public static final String NAME = " Girigiri爱动漫";
-    public static final String LOGO = "https://bgm.girigirilove.com/upload/site/20251010-1/b84e444374bcec3a20419e29e1070e1b.png";
+class Girigirilove : CommonTemplate(), Serializable {
+  override val name: String = "Girigiri爱动漫"
+  override val logoUrl: String =
+    "https://bgm.girigirilove.com/upload/site/20251010-1/b84e444374bcec3a20419e29e1070e1b.png"
+  override val baseUrl: String = "https://bgm.girigirilove.com"
 
-    public Girigirilove() {
-        super();
-        super.setBaseUrl("https://bgm.girigirilove.com");
+  fun schedule(): List<Schedule> {
+    return super.weeklySchedule()
+  }
 
+  override fun getSearchResult(keyword: String?, page: Int?, size: Int?): MutableList<Anime> {
+    val searchUrl = "/search/-------------/?wd=$keyword"
+    val client = HttpUtil.getClient()
+    val request = HttpUtil.getRequest(baseUrl + searchUrl)
+    val animeList = mutableListOf<Anime>()
+    val response = client.newCall(request).execute()
+    val html = ValidateUtil.validateResponse(response)
+    if (html == null) {
+      return animeList
     }
-
-    public List<Schedule> schedule() throws Exception {
-        return super.getWeeklySchedule();
+    val document = Jsoup.parse(html)
+    //todo css 选择器错误，elements 为空
+    val elements = document.select("div.search-list")
+    for (element in elements) {
+      val href = element.select("div.detail-info a").attr("href")
+      val cover = element.select("img.gen-movie-img").attr("data-src")
+      val status = element.select("span.public-list-prb").text()
+      val title = element.select("img.gen-movie-img").attr("alt")
+      val type = element.select("div.thumb-else a").joinToString("•") { it.text() }
+      val director = element.select("div.thumb-director a:not(:first-child)")
+        .joinToString("•") { it.text() }
+      val actor = element.select("div.thumb-actor a:not(:first-child)")
+        .joinToString("•") { it.text() }
+      val description = element.select("span.cor5.thumb-blurb").text()
+        .replace(super.blankReg, "")
+      val anime = Anime().apply {
+        id = href
+        nameCn = title
+        this.description = description
+        this.director = director
+        this.actor = actor
+        this.type = type
+        this.status = status
+        coverUrl = "${super.baseUrl}$cover"
+      }
+      animeList.add(anime)
     }
+    return animeList
+  }
 
 
-    @Override
-    public List<Anime> getSearchResult(String keyword, Integer page, Integer size) throws Exception {
-        String searchUrl = "/search/-------------/?wd=" + keyword;
-        OkHttpClient client = HttpUtil.getClient();
-        Request request = HttpUtil.getRequest(super.getBaseUrl() + searchUrl);
-        List<Anime> animeList = new ArrayList<>();
-        try (Response response = client.newCall(request).execute()) {
-            String html = ValidateUtil.validateResponse(response);
-            if (html == null) {
-                return animeList;
-            }
-            Document document = Jsoup.parse(html);
-            Elements elements = document.select("div.search-list");
-            for (Element element : elements) {
-                String href = element.select("div.detail-info a").attr("href");
-                String cover = element.select("img.gen-movie-img").attr("data-src");
-                String status = element.select("span.public-list-prb").text();
-                String title = element.select("img.gen-movie-img").attr("alt");
-                String type = element.select("div.thumb-else a").stream().map(Element::text).collect(Collectors.joining("•"));
-                StringJoiner joiner = new StringJoiner("•");
-                for (Element element1 : element.select("div.thumb-director a:not(:first-child)")) {
-                    String text = element1.text();
-                    joiner.add(text);
-                }
-                String director = joiner.toString();
-                String actor = element.select("div.thumb-actor a:not(:first-child)").stream().map(Element::text).collect(Collectors.joining("•"));
-                String description = element.select("span.cor5.thumb-blurb").text().replaceAll(super.getBlankReg(), "");
-                Anime anime = new Anime();
-                anime.setId(href);
-                anime.setNameCn(title);
-                anime.setDescription(description);
-                anime.setDirector(director);
-                anime.setActor(actor);
-                anime.setType(type);
-                anime.setStatus(status);
-                anime.setCoverUrl(super.getBaseUrl() + cover);
-                animeList.add(anime);
-            }
-            return animeList;
-        }
-    }
+  @Throws(Exception::class)
+  fun animeDetail(videoId: String?): AnimeDetail? {
+    return super.getAnimeDetail(videoId)
+  }
 
-    public AnimeDetail animeDetail(String videoId) throws Exception {
-        return super.getAnimeDetail(videoId);
-    }
-
-    public PlayInfo playInfo(String episodeId) throws Exception {
-        return super.getPlayInfo(episodeId);
-    }
+  @Throws(Exception::class)
+  fun playInfo(episodeId: String?): PlayInfo? {
+    return super.getPlayInfo(episodeId)
+  }
 }
