@@ -13,9 +13,9 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -89,7 +89,7 @@ fun WeeklyPage(
       modifier = Modifier
         .padding(innerPadding)
     ) {
-      TabRow(selectedTabIndex = tabIndex.value) {
+      PrimaryTabRow(selectedTabIndex = tabIndex.value) {
         tabs.forEachIndexed { index, title ->
           Tab(text = { Text(title) }, selected = tabIndex.value == index, onClick = {
             coroutineScope.launch {
