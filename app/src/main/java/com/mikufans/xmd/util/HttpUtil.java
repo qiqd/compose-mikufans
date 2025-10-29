@@ -33,6 +33,7 @@ public class HttpUtil {
 
     public static OkHttpClient getClient() {
         return new OkHttpClient.Builder()
+                .retryOnConnectionFailure(true)
                 .writeTimeout(100, TimeUnit.SECONDS).readTimeout(100, TimeUnit.SECONDS)
                 .addInterceptor(chain -> {
                     Request request = chain.request();

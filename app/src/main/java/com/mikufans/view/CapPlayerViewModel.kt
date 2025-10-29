@@ -43,7 +43,7 @@ class CapPlayerViewModel : ViewModel() {
     releasePlayer()
   }
 
-  private fun releasePlayer() {
+  fun releasePlayer() {
     exoPlayer?.release()
     exoPlayer = null
   }

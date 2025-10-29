@@ -32,7 +32,6 @@ class Girigirilove : CommonTemplate(), Serializable {
       return animeList
     }
     val document = Jsoup.parse(html)
-    //todo css 选择器错误，elements 为空
     val elements = document.select("div.search-list")
     for (element in elements) {
       val href = element.select("div.detail-info a").attr("href")

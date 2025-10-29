@@ -20,10 +20,11 @@ object Navigation {
     animeSubId: String,
     animeName: String
   ) {
-    val animeId = URLEncoder.encode(animeId, "UTF-8")
-    val animeSubId = URLEncoder.encode(animeSubId, "UTF-8")
-    val source = URLEncoder.encode(playSource, "UTF-8")
-    navController.navigate("$ANIME_DETAIL/$animeId/$animeSubId/$animeName/$source") {
+    val enCodeAnimeId = URLEncoder.encode(animeId, "UTF-8")
+    val enCodeAnimeSubId = URLEncoder.encode(animeSubId, "UTF-8")
+    val enCodePlaySource = URLEncoder.encode(playSource, "UTF-8")
+    val enCodeAnimeName = URLEncoder.encode(animeName, "UTF-8")
+    navController.navigate("$ANIME_DETAIL/$enCodeAnimeId/$enCodeAnimeSubId/$enCodeAnimeName/$enCodePlaySource") {
       launchSingleTop = true
       restoreState = true
     }

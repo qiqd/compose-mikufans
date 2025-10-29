@@ -22,13 +22,15 @@ import java.util.regex.Pattern
 open class CommonTemplate : HtmlParser, Serializable {
   val blankReg = "[\\s\u3000]+"
 
-  override val name: String = "通用模板"
-  override val logoUrl: String = ""
-  override val baseUrl: String = ""
+  override val name: String = "Girigiri爱动漫"
+  override val logoUrl: String =
+    "https://bgm.girigirilove.com/upload/site/20251010-1/b84e444374bcec3a20419e29e1070e1b.png"
+  override val baseUrl: String = "https://bgm.girigirilove.com"
 
   override fun getSearchResult(keyword: String?, page: Int?, size: Int?): MutableList<Anime> {
     val client = HttpUtil.getClient()
-    val request = HttpUtil.getRequest("$baseUrl$keyword")
+    val searchUrl = "/search/-------------/?wd=$keyword"
+    val request = HttpUtil.getRequest(baseUrl + searchUrl)
     val animeList = ArrayList<Anime>()
     val response = client.newCall(request).execute()
     val html = ValidateUtil.validateResponse(response)

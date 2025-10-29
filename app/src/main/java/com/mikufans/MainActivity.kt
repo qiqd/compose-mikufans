@@ -30,7 +30,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.alibaba.fastjson.JSON
-import com.mikufans.api.UserApi
 import com.mikufans.ui.nav.BottomNavigationItem
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.ui.page.AboutPage
@@ -80,9 +79,11 @@ class MainActivity : ComponentActivity() {
       return
     }
     try {
-      LocalStorage.getList(this, "view:history", History::class.java)?.let {
-        UserApi.updateHistory(it)
-      }
+      Thread {
+        LocalStorage.getList(this, "view:history", History::class.java)?.let {
+//          UserApi.updateHistory(it)
+        }
+      }.start()
     } catch (e: Exception) {
       Log.e("保存历史记录失败", e.toString())
     }
@@ -174,8 +175,10 @@ fun MainScreen(activity: ComponentActivity) {
       composable(Navigation.ANIME_DETAIL + "/{animeId}/{animeSubId}/{animeName}/{source}") { backStackEntry ->
         var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
         animeId = URLDecoder.decode(animeId, "UTF-8")
-        val animeName = backStackEntry.arguments?.getString("animeName") ?: ""
-        val animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
+        var animeName = backStackEntry.arguments?.getString("animeName") ?: ""
+        animeName = URLDecoder.decode(animeName, "UTF-8")
+        var animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
+        animeSubId = URLDecoder.decode(animeSubId, "UTF-8")
         var source = backStackEntry.arguments?.getString("source") ?: ""
         source = URLDecoder.decode(source, "UTF-8")
         DetailPage(

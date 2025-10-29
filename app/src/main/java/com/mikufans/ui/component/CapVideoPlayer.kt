@@ -106,7 +106,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 
-private var currentUrl = ""
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -132,6 +131,7 @@ fun CapVideoPlayer(
   onPositionChange: (Long) -> Unit = {},
   onDurationChange: (Long) -> Unit = {},
   onPlayerError: (Exception) -> Unit = {},
+  releasePlayer: (CapPlayerViewModel) -> Unit = {},
 ) {
   val current = LocalContext.current
   val window = (current as Activity).window
@@ -161,26 +161,27 @@ fun CapVideoPlayer(
       onPlayerError(exception)
     }
   }
-
+  releasePlayer(capPlayerViewModel)
 // 初次加载播放器
   LaunchedEffect(videoUrl) {
-    if (currentUrl == videoUrl) return@LaunchedEffect
+    if (capPlayerViewModel.getCurrentUrl() == videoUrl) return@LaunchedEffect
     val url = videoUrl ?: playList.getOrNull(episodeIndex) ?: return@LaunchedEffect
     exoPlayer.setMediaItem(MediaItem.fromUri(url))
     exoPlayer.prepare()
     exoPlayer.seekTo(initPosition)
     exoPlayer.playWhenReady = true
-    currentUrl = url
+    capPlayerViewModel.setCurrentUrl(url)
   }
   // 切换视频时更换 MediaItem，不会重建播放器
-  LaunchedEffect(currentEpisodeIndex) {
-    val newUrl = videoUrl ?: playList.getOrNull(currentEpisodeIndex) ?: return@LaunchedEffect
+  LaunchedEffect(episodeIndex) {
+    val newUrl = videoUrl ?: playList.getOrNull(episodeIndex) ?: return@LaunchedEffect
     if (initPosition == 0L) {
       exoPlayer.setMediaItem(MediaItem.fromUri(newUrl))
     } else {
       exoPlayer.seekTo(initPosition)
     }
     exoPlayer.prepare()
+
     exoPlayer.playWhenReady = true
   }
 
@@ -278,8 +279,8 @@ fun CapVideoPlayer(
     AndroidView(
       factory = { ctx ->
         PlayerView(ctx).apply {
-          player = exoPlayer
           useController = false
+          player = exoPlayer
           setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
           // 确保 SurfaceView 正确适配横屏
           setResizeMode(resizeMode)

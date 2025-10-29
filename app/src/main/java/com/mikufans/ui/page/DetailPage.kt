@@ -113,6 +113,7 @@ fun DetailPage(
         )
         val targetAnime = nameCnMap[bestMatch]
         animeDetail = service.getAnimeDetail(targetAnime?.id)
+        id = targetAnime?.id!!
         launch(Dispatchers.Main) { isLoading = false }
       } catch (e: Exception) {
         e.printStackTrace()
@@ -324,6 +325,7 @@ fun PlayLine(
               .fillMaxWidth()
               .clickable {
                 val json = URLEncoder.encode(JSON.toJSONString(episodes), "UTF-8")
+                //跳转
                 Navigation.navigateToAnimePlayer(
                   navController,
                   animeId,

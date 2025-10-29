@@ -49,12 +49,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.mikufans.R
 import com.mikufans.ui.component.CapVideoPlayer
 import com.mikufans.util.GifLoader
 import com.mikufans.util.LocalStorage
+import com.mikufans.view.CapPlayerViewModel
 import com.mikufans.xmd.miku.entiry.Anime
 import com.mikufans.xmd.miku.entiry.Episode
 import com.mikufans.xmd.miku.entiry.History
@@ -91,6 +93,7 @@ fun PlaybackPage(
   val coroutineScope = rememberCoroutineScope()
   var isFullscreen by rememberSaveable { mutableStateOf(false) }
   val sources = SourceUtil.getSourceWithDelay()
+  val capPlayerViewModel: CapPlayerViewModel = viewModel()
   DisposableEffect(Unit) {
     onDispose {
       val history = History(
@@ -123,12 +126,10 @@ fun PlaybackPage(
     val idx = historyList.indexOfFirst { it.id == animeId }
     try {
       if (idx >= 0) {
-        val tempPlayInfo = PlayInfo()
         currentPlayingEpisodeId = historyList[idx].episodeId
         currentPlayingEpisodeIndex = historyList[idx].episodeIndex ?: 0
-        tempPlayInfo.currentEpisodeUrl = historyList[idx].videoUrl
+        playInfo.currentEpisodeUrl = historyList[idx].videoUrl
         currentPosition = historyList[idx].position ?: 0L
-        playInfo = tempPlayInfo
         isLove = historyList[idx].isLove
       } else {
 
@@ -177,7 +178,10 @@ fun PlaybackPage(
               currentPosition = it
             },
             onLeadingBackButtonTab = {
-              if (!isFullscreen) navController?.popBackStack()
+              if (!isFullscreen) {
+                navController?.popBackStack()
+                capPlayerViewModel.releasePlayer()
+              }
             },
             onLandscapeChange = {
               isFullscreen = it
