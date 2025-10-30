@@ -4,7 +4,6 @@ package com.mikufans.xmd.util;
 import android.content.Context;
 
 import com.alibaba.fastjson.JSON;
-import com.mikufans.util.LocalStorage;
 import com.mikufans.xmd.miku.entiry.WebsiteDelay;
 import com.mikufans.xmd.miku.service.HtmlParser;
 import com.mikufans.xmd.teto.entity.RequestType;
@@ -13,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -38,8 +36,8 @@ public class HttpUtil {
                 .addInterceptor(chain -> {
                     Request request = chain.request();
                     Request newRequest = request.newBuilder()
-                            .addHeader("token", Optional.ofNullable(LocalStorage.INSTANCE.get(applicationContext, "token", String.class)).orElse("")).
-                            addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36").addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8").addHeader("Accept-Language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7").build();
+//                            .addHeader("token", Optional.ofNullable(LocalStorage.INSTANCE.get(applicationContext, "token", String.class)).orElse(""))
+                            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36").addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8").addHeader("Accept-Language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7").build();
                     return chain.proceed(newRequest);
                 })
                 .build();
