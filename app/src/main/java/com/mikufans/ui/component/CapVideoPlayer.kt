@@ -334,9 +334,7 @@ fun CapVideoPlayer(
       Row(
         modifier = Modifier
           .weight(1f)/* ① 水平手势：进度微调 */.pointerInput(Unit) {
-            if (!isLandscape) {
-              return@pointerInput
-            }
+            if (!isLandscape || controllerLocked) return@pointerInput
             detectHorizontalDragGestures(onDragStart = {
               showMediaPropertyChangeText = true
               seekAccumulatePx = 0f          // 重置累计位移
@@ -361,6 +359,7 @@ fun CapVideoPlayer(
             .weight(1f)
             .fillMaxSize()
             .pointerInput(Unit) {
+              if (!isLandscape || controllerLocked) return@pointerInput
               detectVerticalDragGestures(
                 onDragStart = {
                   showMediaPropertyChangeText = true
@@ -371,7 +370,7 @@ fun CapVideoPlayer(
                   Log.d("Gesture-brightness", "Drag end")
                 },
               ) { change, dragAmount ->
-                if (!isLandscape) return@detectVerticalDragGestures
+
                 // 监听 Y 轴滑动事件，实现调整亮度功能
                 val attrs = window.attributes
                 val old = when (attrs.screenBrightness) {
@@ -417,6 +416,7 @@ fun CapVideoPlayer(
             .weight(1f)
             .fillMaxSize()
             .pointerInput(Unit) {
+              if (!isLandscape || controllerLocked) return@pointerInput
               detectVerticalDragGestures(
                 onDragStart = {
                   showMediaPropertyChangeText = true
@@ -429,7 +429,7 @@ fun CapVideoPlayer(
               ) { change, dragAmount ->
                 val density = dragAmount / deviceDensity
                 if ((density % 5).toInt() != 0) return@detectVerticalDragGestures
-                if (!isLandscape) return@detectVerticalDragGestures
+
                 val audioManager = current.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
                 if (dragAmount < 0) {
