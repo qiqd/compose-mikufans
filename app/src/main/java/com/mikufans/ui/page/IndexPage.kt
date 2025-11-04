@@ -223,9 +223,7 @@ fun IndexPage(
         coroutineScope.launch(Dispatchers.IO) {
           try {
             isRefreshing = true
-            while (SourceUtil.getSourceWithDelay().isEmpty()) {
-              SourceUtil.initSources()
-            }
+            SourceUtil.refreshSources()
             delay(2000L)
           } catch (e: Exception) {
             // 错误处理

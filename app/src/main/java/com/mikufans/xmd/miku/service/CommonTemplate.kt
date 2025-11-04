@@ -54,7 +54,7 @@ open class CommonTemplate : HtmlParser, Serializable {
 
       val anime = Anime().apply {
         id = href
-        name = title
+        nameCn = title
         coverUrl = cover
       }
       anime.description = description

@@ -128,24 +128,24 @@ fun PlaybackPage(
       if (idx >= 0) {
         currentPlayingEpisodeId = historyList[idx].episodeId
         currentPlayingEpisodeIndex = historyList[idx].episodeIndex ?: 0
-        playInfo.currentEpisodeUrl = historyList[idx].videoUrl
+//        playInfo.currentEpisodeUrl = historyList[idx].videoUrl
         currentPosition = historyList[idx].position ?: 0L
         isLove = historyList[idx].isLove
-      } else {
-
-        coroutineScope.launch(Dispatchers.IO) {
-          try {
-            playInfo.currentEpisodeUrl ?: let {
-              playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId) ?: PlayInfo()
-            }
-          } catch (e: Exception) {
-            Log.e("player.error", e.toString())
-            coroutineScope.launch {
-              Toast.makeText(content, "加载数据失败: ${e.message}", Toast.LENGTH_LONG).show()
-            }
+      }
+      coroutineScope.launch(Dispatchers.IO) {
+        try {
+          playInfo.currentEpisodeUrl ?: let {
+            playInfo = sources[0].service.getPlayInfo(episodeList[currentPlayingEpisodeIndex].id)
+              ?: PlayInfo()
+          }
+        } catch (e: Exception) {
+          Log.e("player.error", e.toString())
+          coroutineScope.launch(Dispatchers.Main) {
+            Toast.makeText(content, "加载数据失败: ${e.message}", Toast.LENGTH_LONG).show()
           }
         }
       }
+
     } catch (e: Exception) {
       Log.e("player.error", e.toString())
       launch(Dispatchers.Main) {

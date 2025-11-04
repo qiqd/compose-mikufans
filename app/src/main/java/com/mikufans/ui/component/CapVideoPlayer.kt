@@ -155,7 +155,7 @@ fun CapVideoPlayer(
   var resizeMode by rememberSaveable { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
   var playbackSpeed by rememberSaveable { mutableFloatStateOf(1f) }
   val capPlayerViewModel: CapPlayerViewModel = viewModel()
-  var controllerLocked by rememberSaveable { mutableStateOf(false) }
+  var controllerLocked by remember { mutableStateOf(false) }
   val exoPlayer = remember {
     capPlayerViewModel.getPlayer(current) { exception ->
       onPlayerError(exception)
@@ -333,7 +333,7 @@ fun CapVideoPlayer(
       //中间：
       Row(
         modifier = Modifier
-          .weight(1f)/* ① 水平手势：进度微调 */.pointerInput(Unit) {
+          .weight(1f)/* ① 水平手势：进度微调 */.pointerInput(controllerLocked) {
             if (!isLandscape || controllerLocked) return@pointerInput
             detectHorizontalDragGestures(onDragStart = {
               showMediaPropertyChangeText = true
@@ -358,7 +358,7 @@ fun CapVideoPlayer(
           modifier = Modifier
             .weight(1f)
             .fillMaxSize()
-            .pointerInput(Unit) {
+            .pointerInput(controllerLocked) {
               if (!isLandscape || controllerLocked) return@pointerInput
               detectVerticalDragGestures(
                 onDragStart = {
@@ -415,7 +415,7 @@ fun CapVideoPlayer(
           modifier = Modifier
             .weight(1f)
             .fillMaxSize()
-            .pointerInput(Unit) {
+            .pointerInput(controllerLocked) {
               if (!isLandscape || controllerLocked) return@pointerInput
               detectVerticalDragGestures(
                 onDragStart = {

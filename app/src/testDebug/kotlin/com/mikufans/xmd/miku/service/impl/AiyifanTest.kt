@@ -28,7 +28,7 @@ class AiyifanTest {
 
   @Test
   fun getSearchResult() {
-    val playInfo = aiyifan.getPlayInfo("/ayf.sbs-play/95251-1-15.html")
+    val playInfo = aiyifan.getPlayInfo("/ayf.sbs-play/21787-1-1.html")
     println(JSON.toJSONString(playInfo))
   }
 

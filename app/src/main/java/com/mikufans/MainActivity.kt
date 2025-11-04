@@ -9,7 +9,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
@@ -143,6 +145,26 @@ fun MainScreen(activity: ComponentActivity) {
       ),
       navController = navController,
       startDestination = BottomNavigationItem.Index.route,
+//      popEnterTransition = {
+//        slideInVertically(initialOffsetY = { it })
+//      },
+//      popExitTransition = {
+//        slideOutVertically(targetOffsetY = { it })
+//      },
+      enterTransition = {
+        if (showNavigationBar) {
+          fadeIn()
+        } else {
+          slideInHorizontally(initialOffsetX = { it }) + fadeIn()
+        }
+      },
+      exitTransition = {
+        if (showNavigationBar) {
+          fadeOut()
+        } else {
+          slideOutHorizontally(targetOffsetX = { -it }) + fadeOut()
+        }
+      },
     ) {
       composable(BottomNavigationItem.Index.route) {
         IndexPage(

@@ -43,12 +43,12 @@ fun SubscribePage(
   anime.name = "夏日口袋"
   val content = LocalContext.current
   val lazyGridState = rememberLazyListState()
-  var historyList by remember { mutableStateOf<List<History>>(emptyList()) }
-  val loveList = remember(historyList) { historyList.filter { it.isLove } }
+  var loveList by remember { mutableStateOf<List<History>>(emptyList()) }
+
   LaunchedEffect(Unit) {
-    historyList =
+    val all =
       LocalStorage.getList(content, "view:history", History::class.java)?.toList() ?: emptyList()
-    historyList = historyList.sortedByDescending { it.time }
+    loveList = all.filter { it.isLove }.sortedByDescending { it.time }
   }
   BackHandler { activity.moveTaskToBack(true) }
   Scaffold(
@@ -60,7 +60,7 @@ fun SubscribePage(
         .fillMaxSize()
         .padding(innerPadding),
     ) {
-      if (!historyList.any { it.isLove }) {
+      if (loveList.isEmpty()) {
         EmptyCompose()
       } else {
         LazyColumn(
@@ -70,18 +70,17 @@ fun SubscribePage(
           modifier = Modifier.fillMaxSize()
         ) {
           items(loveList.size) { index ->
-            val isLove = loveList[index].isLove
             val anime1 = Anime(
-              id = historyList[index].id.toString(),
-              subId = historyList[index].subId?.toInt(),
-              name = historyList[index].nameCn,
+              id = loveList[index].id.toString(),
+              subId = loveList[index].subId?.toInt(),
+              name = loveList[index].nameCn,
             )
-            anime1.coverUrl = historyList[index].cover
+            anime1.coverUrl = loveList[index].cover
 
             AnimeCard(anime1) { animeSubId, animeName ->
               Navigation.navigateToAnimeDetail(
                 navController = navController,
-                animeId = historyList[index].id.toString(),
+                animeId = loveList[index].id.toString(),
                 animeSubId = animeSubId.toString(),
                 animeName = animeName
               )

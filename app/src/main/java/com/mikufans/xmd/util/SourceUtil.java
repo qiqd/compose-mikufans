@@ -14,16 +14,28 @@ import java.util.Map;
 public class SourceUtil {
     private static final Map<String, HtmlParser> SOURCES = new HashMap<>();
     private static final List<WebsiteDelay> delays = new ArrayList<>();
+    private static long lastRefreshMillis = 0L;
+    private static final long MIN_INTERVAL = 5000L;
 
     static {
         SOURCES.put("www.aafun.cc", new AAfun());
         SOURCES.put("bgm.girigirilove.com", new CommonTemplate());
-        SOURCES.put("https://www.aiyifan.sbs", new Aiyifan());
+        SOURCES.put("www.aiyifan.sbs", new Aiyifan());
     }
 
     public static void initSources() {
         delays.addAll(HttpUtil.getDomainDelaysConcurrent(SOURCES));
 
+    }
+
+    public static void refreshSources() {
+        long now = System.currentTimeMillis();
+        if (now - lastRefreshMillis < MIN_INTERVAL) {
+            return;
+        }
+        lastRefreshMillis = now;
+        delays.clear();
+        new Thread(SourceUtil::initSources).start();
     }
 
     public static List<WebsiteDelay> getSourceWithDelay() {
