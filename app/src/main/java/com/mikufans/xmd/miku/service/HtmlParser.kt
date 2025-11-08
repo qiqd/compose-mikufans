@@ -34,7 +34,7 @@ interface HtmlParser : Serializable {
    * @throws Exception 解析异常
   </Anime> */
   @Throws(Exception::class)
-  fun getSearchResult(keyword: String?, page: Int?, size: Int?): MutableList<Anime>
+  fun fetchSearch(keyword: String?, page: Int?, size: Int?): MutableList<Anime>
 
   /**
    * 解析视频详情信息
@@ -44,7 +44,7 @@ interface HtmlParser : Serializable {
    * @throws Exception 解析异常
    */
   @Throws(Exception::class)
-  fun getAnimeDetail(videoId: String?): AnimeDetail?
+  fun fetchDetail(videoId: String?): AnimeDetail?
 
   /**
    * 解析播放信息
@@ -54,7 +54,7 @@ interface HtmlParser : Serializable {
    * @throws Exception 解析异常
    */
   @Throws(Exception::class)
-  fun getPlayInfo(episodeId: String?): PlayInfo?
+  fun fetchPlayInfo(episodeId: String?): PlayInfo?
 
   /**
    * 解析推荐视频
@@ -64,8 +64,8 @@ interface HtmlParser : Serializable {
    * @throws Exception 解析异常
    */
   @Throws(Exception::class)
-  fun getRecommendations(html: String?): String?
+  fun fetchRecommend(html: String?): String?
 
   @Throws(Exception::class)
-  fun weeklySchedule(): List<Schedule>
+  fun fetchWeekly(): List<Schedule>
 }

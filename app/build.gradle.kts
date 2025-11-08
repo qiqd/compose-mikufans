@@ -23,8 +23,8 @@ android {
     applicationId = "com.mikufans"
     minSdk = 26
     targetSdk = 36
-    versionCode = 11
-    versionName = "1.0.11"
+    versionCode = 12
+    versionName = "1.0.12"
     androidResources {
       localeFilters += listOf("en", "zh-rCN")
     }
@@ -71,8 +71,8 @@ android {
 }
 
 dependencies {
-
-//  implementation("com.github.kittinunf.fuel:fuel:2.3.1")
+  // 添加新依赖项
+  implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
   // Compose Video 视频播放库
   implementation("androidx.compose.material:material-icons-extended:1.7.8")
   implementation("androidx.media3:media3-exoplayer-hls:1.8.0")

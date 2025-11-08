@@ -27,7 +27,7 @@ open class CommonTemplate : HtmlParser, Serializable {
     "https://bgm.girigirilove.com/upload/site/20251010-1/b84e444374bcec3a20419e29e1070e1b.png"
   override val baseUrl: String = "https://bgm.girigirilove.com"
 
-  override fun getSearchResult(keyword: String?, page: Int?, size: Int?): MutableList<Anime> {
+  override fun fetchSearch(keyword: String?, page: Int?, size: Int?): MutableList<Anime> {
     val client = HttpUtil.getClient()
     val searchUrl = "/search/-------------/?wd=$keyword"
     val request = HttpUtil.getRequest(baseUrl + searchUrl)
@@ -67,7 +67,7 @@ open class CommonTemplate : HtmlParser, Serializable {
     return animeList
   }
 
-  override fun getAnimeDetail(videoId: String?): AnimeDetail? {
+  override fun fetchDetail(videoId: String?): AnimeDetail? {
     val fullUrl = "$baseUrl$videoId"
     val client = HttpUtil.getClient()
     val request = HttpUtil.getRequest(fullUrl)
@@ -118,7 +118,7 @@ open class CommonTemplate : HtmlParser, Serializable {
     return animeDetail
   }
 
-  override fun getPlayInfo(episodeId: String?): PlayInfo? {
+  override fun fetchPlayInfo(episodeId: String?): PlayInfo? {
     val fullUrl = "$baseUrl$episodeId"
     val client = HttpUtil.getClient()
     val request = HttpUtil.getRequest(fullUrl)
@@ -145,11 +145,11 @@ open class CommonTemplate : HtmlParser, Serializable {
     return playInfo
   }
 
-  override fun getRecommendations(html: String?): String? {
+  override fun fetchRecommend(html: String?): String? {
     return null
   }
 
-  override fun weeklySchedule(): List<Schedule> {
+  override fun fetchWeekly(): List<Schedule> {
     val client = HttpUtil.getClient()
     val request = HttpUtil.getRequest(baseUrl)
 

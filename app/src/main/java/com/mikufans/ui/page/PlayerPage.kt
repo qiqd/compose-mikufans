@@ -135,7 +135,7 @@ fun PlaybackPage(
       coroutineScope.launch(Dispatchers.IO) {
         try {
           playInfo.currentEpisodeUrl ?: let {
-            playInfo = sources[0].service.getPlayInfo(episodeList[currentPlayingEpisodeIndex].id)
+            playInfo = sources[0].service.fetchPlayInfo(episodeList[currentPlayingEpisodeIndex].id)
               ?: PlayInfo()
           }
         } catch (e: Exception) {
@@ -220,7 +220,7 @@ fun PlaybackPage(
               coroutineScope.launch(Dispatchers.IO) {
 //                historyPosition = 0L
 
-                playInfo = sources[0].service.getPlayInfo(currentPlayingEpisodeId)!!
+                playInfo = sources[0].service.fetchPlayInfo(currentPlayingEpisodeId)!!
                 currentPosition = 0L
               }
             } catch (e: Exception) {

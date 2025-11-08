@@ -4,7 +4,6 @@ import com.mikufans.xmd.miku.entiry.WebsiteDelay;
 import com.mikufans.xmd.miku.service.CommonTemplate;
 import com.mikufans.xmd.miku.service.HtmlParser;
 import com.mikufans.xmd.miku.service.impl.AAfun;
-import com.mikufans.xmd.miku.service.impl.Aiyifan;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,7 +19,7 @@ public class SourceUtil {
     static {
         SOURCES.put("www.aafun.cc", new AAfun());
         SOURCES.put("bgm.girigirilove.com", new CommonTemplate());
-        SOURCES.put("www.aiyifan.sbs", new Aiyifan());
+//        SOURCES.put("www.aiyifan.sbs", new Aiyifan());
     }
 
     public static void initSources() {

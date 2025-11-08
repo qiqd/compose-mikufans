@@ -72,6 +72,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okio.IOException
+import org.jsoup.Jsoup
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -173,6 +174,10 @@ fun IndexPage(
             }
             Log.i("IndexPage-Search", keyword)
             coroutineScope.launch(Dispatchers.IO) {
+
+              val get = Jsoup.connect("https://www.baidu.com").get()
+              Log.d("IndexPage-Search", get.html())
+              return@launch
               try {
                 isLoading = true
 //              val search = sources[0].service.getSearchResult(keyword, 1, 20)

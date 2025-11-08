@@ -25,7 +25,7 @@ class Aiyifan : HtmlParser, Serializable {
       "4" to "https://sd7.taopianplay1.com:43333",
     )
 
-  override fun getSearchResult(
+  override fun fetchSearch(
     keyword: String?,
     page: Int?,
     size: Int?
@@ -70,7 +70,7 @@ class Aiyifan : HtmlParser, Serializable {
     return animeList
   }
 
-  override fun getAnimeDetail(videoId: String?): AnimeDetail? {
+  override fun fetchDetail(videoId: String?): AnimeDetail? {
     val fullUrl = baseUrl + videoId
     val request = HttpUtil.getRequest(fullUrl)
     val response = HttpUtil.getClient().newCall(request).execute()
@@ -88,7 +88,7 @@ class Aiyifan : HtmlParser, Serializable {
     )
   }
 
-  override fun getPlayInfo(episodeId: String?): PlayInfo? {
+  override fun fetchPlayInfo(episodeId: String?): PlayInfo? {
     val fullUrl = baseUrl + episodeId
     val request = HttpUtil.getRequest(fullUrl)
     val response = HttpUtil.getClient().newCall(request).execute()
@@ -107,11 +107,11 @@ class Aiyifan : HtmlParser, Serializable {
     )
   }
 
-  override fun getRecommendations(html: String?): String? {
+  override fun fetchRecommend(html: String?): String? {
     TODO("Not yet implemented")
   }
 
-  override fun weeklySchedule(): List<Schedule> {
+  override fun fetchWeekly(): List<Schedule> {
     TODO("Not yet implemented")
   }
 }

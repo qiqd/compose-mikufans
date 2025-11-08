@@ -18,10 +18,10 @@ class Girigirilove : CommonTemplate(), Serializable {
   override val baseUrl: String = "https://bgm.girigirilove.com"
 
   fun schedule(): List<Schedule> {
-    return super.weeklySchedule()
+    return super.fetchWeekly()
   }
 
-  override fun getSearchResult(keyword: String?, page: Int?, size: Int?): MutableList<Anime> {
+  override fun fetchSearch(keyword: String?, page: Int?, size: Int?): MutableList<Anime> {
     val searchUrl = "/search/-------------/?wd=$keyword"
     val client = HttpUtil.getClient()
     val request = HttpUtil.getRequest(baseUrl + searchUrl)
@@ -63,11 +63,11 @@ class Girigirilove : CommonTemplate(), Serializable {
 
   @Throws(Exception::class)
   fun animeDetail(videoId: String?): AnimeDetail? {
-    return super.getAnimeDetail(videoId)
+    return super.fetchDetail(videoId)
   }
 
   @Throws(Exception::class)
   fun playInfo(episodeId: String?): PlayInfo? {
-    return super.getPlayInfo(episodeId)
+    return super.fetchPlayInfo(episodeId)
   }
 }

@@ -96,23 +96,14 @@ fun DetailPage(
         val subjectSearch = RedDrillBit().fetchSubject(animeSubId)
         subject = subjectSearch
         isLoading = false
-        // 没有id时，本地历史记录为空时，使用搜索结果
-//        if (id.isEmpty()) {
-//          val searchResult = service.getSearchResult(animeName, 1, 10)
-//          val nameCnMap = searchResult.associateBy { it.nameCn }
-//          val bestMatch =
-//            StringMatchUtil.findBestMatchWithJaroWinkler(nameCnMap.keys.toList(), animeName)
-//          id = nameCnMap[bestMatch]?.id!!
-//        }
-//        animeDetail = service.getAnimeDetail(id)
-        val searchResult = service.getSearchResult(subjectSearch.nameCn, 1, 10)
+        val searchResult = service.fetchSearch(subjectSearch.nameCn, 1, 10)
         val nameCnMap = searchResult.associateBy { it.nameCn }
         val bestMatch = StringMatchUtil.findBestMatchWithJaroWinkler(
           nameCnMap.keys.toList(),
           subjectSearch.nameCn
         )
         val targetAnime = nameCnMap[bestMatch]
-        animeDetail = service.getAnimeDetail(targetAnime?.id)
+        animeDetail = service.fetchDetail(targetAnime?.id)
         id = targetAnime?.id!!
         launch(Dispatchers.Main) { isLoading = false }
       } catch (e: Exception) {
@@ -275,14 +266,14 @@ private fun AnimeHeader(subject: Anime) {
           color = Color.Gray
         )
       }
-      subject.ariDate?.let {
+      subject.totalEpisodes?.let {
         Text(
-          text = it,
+          text = "总集数: $it",
           style = MaterialTheme.typography.bodyLarge,
           color = Color.Gray
         )
       }
-      subject.ariDate?.let {
+      subject.type?.let {
         Text(
           text = subject.totalEpisodes.toString(),
           style = MaterialTheme.typography.bodyLarge,

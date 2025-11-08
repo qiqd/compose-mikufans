@@ -17,7 +17,7 @@ class Omofun() : HtmlParser, Serializable {
   override val logoUrl: String =
     "https://omofun.in/upload/mxprocms/20220402-1/9bc9db05cafd0fdec0a1f9cec2c1ce7a.png"
   override val baseUrl: String = "https://omofun.in"
-  override fun getSearchResult(
+  override fun fetchSearch(
     keyword: String?,
     page: Int?,
     size: Int?
@@ -55,7 +55,7 @@ class Omofun() : HtmlParser, Serializable {
     return animeList
   }
 
-  override fun getAnimeDetail(videoId: String?): AnimeDetail? {
+  override fun fetchDetail(videoId: String?): AnimeDetail? {
     val request = HttpUtil.getRequest(baseUrl + videoId)
     val response = HttpUtil.getClient().newCall(request).execute()
     val html = ValidateUtil.validateResponse(response)
@@ -93,16 +93,16 @@ class Omofun() : HtmlParser, Serializable {
     )
   }
 
-  override fun getPlayInfo(episodeId: String?): PlayInfo? {
+  override fun fetchPlayInfo(episodeId: String?): PlayInfo? {
     TODO("Not yet implemented")
   }
 
-  override fun getRecommendations(html: String?): String? {
+  override fun fetchRecommend(html: String?): String? {
     TODO("Not yet implemented")
 
   }
 
-  override fun weeklySchedule(): List<Schedule> {
+  override fun fetchWeekly(): List<Schedule> {
     TODO("Not yet implemented")
   }
 

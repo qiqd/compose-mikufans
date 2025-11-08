@@ -28,10 +28,10 @@ class AAfun : HtmlParser, Serializable {
   override val logoUrl: String = "https://p.upyun.com/demo/tmp/Hds66ovM.png"
   override val baseUrl: String = "https://www.aafun.cc"
 
-  override fun getSearchResult(keyword: String?, page: Int?, size: Int?): MutableList<Anime> {
+  override fun fetchSearch(keyword: String?, page: Int?, size: Int?): MutableList<Anime> {
     val searchUrl = "/feng-s.html?wd=$keyword&submit="
     val client = HttpUtil.getClient()
-    Log.i("getSearchResult-Url:", "$baseUrl$searchUrl")
+//    Log.i("getSearchResult-Url:", "$baseUrl$searchUrl")
     val request = HttpUtil.getRequest("$baseUrl$searchUrl")
     client.newCall(request).execute().use { response ->
       val body = ValidateUtil.validateResponse(response)
@@ -52,8 +52,8 @@ class AAfun : HtmlParser, Serializable {
   }
 
 
-  override fun getAnimeDetail(videoId: String?): AnimeDetail? {
-    Log.i("getAnimeDetail-Url", "$baseUrl$videoId")
+  override fun fetchDetail(videoId: String?): AnimeDetail? {
+//    Log.i("fecthDetail-Url", "$baseUrl$videoId")
     val request = HttpUtil.getRequest("$baseUrl$videoId")
     HttpUtil.getClient().newCall(request).execute().use { response ->
       val body = ValidateUtil.validateResponse(response)
@@ -168,8 +168,8 @@ class AAfun : HtmlParser, Serializable {
     }
   }
 
-  override fun getPlayInfo(episodeId: String?): PlayInfo? {
-    Log.i("getPlayInfo-Url:", "$baseUrl$episodeId")
+  override fun fetchPlayInfo(episodeId: String?): PlayInfo? {
+//    Log.i("fetchPlayInfo-Url:", "$baseUrl$episodeId")
     val request = HttpUtil.getRequest("$baseUrl$episodeId")
 
     HttpUtil.getClient().newCall(request).execute().use { response ->
@@ -217,13 +217,13 @@ class AAfun : HtmlParser, Serializable {
   }
 
 
-  override fun getRecommendations(html: String?): String? {
+  override fun fetchRecommend(html: String?): String? {
     return null
   }
 
 
-  override fun weeklySchedule(): MutableList<Schedule> {
-    Log.i("getWeeklySchedule-Url:", baseUrl)
+  override fun fetchWeekly(): MutableList<Schedule> {
+//    Log.i("getWeeklySchedule-Url:", baseUrl)
     val request = HttpUtil.getRequest(baseUrl)
     HttpUtil.getClient().newCall(request).execute().use { response ->
       val body = ValidateUtil.validateResponse(response)
