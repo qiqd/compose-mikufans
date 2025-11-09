@@ -69,7 +69,10 @@
 -dontwarn springfox.documentation.**
 
 # 如果 R8 仍提示，可直接丢弃这些扩展代码
--assumenosideeffects class com.alibaba.fastjson.serializer.AwtCodec { *; }
 -assumenosideeffects class com.alibaba.fastjson.support.** { *; }
+
+# 外部jar包
+ -keep class org.anime.** { *; }
+ -keep interface org.anime.** { *; }
 
 

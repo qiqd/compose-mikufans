@@ -68,7 +68,8 @@ fun SubscribePage(
         ) {
           items(loveList.size) { index ->
             val tempAnimation = Animation()
-            tempAnimation.title = loveList[index].nameCn
+            tempAnimation.subId = loveList[index].subId?.toInt()
+            tempAnimation.title = loveList[index].name
             tempAnimation.titleCn = loveList[index].nameCn
             tempAnimation.coverUrls = listOf(loveList[index].cover)
             AnimeCard(tempAnimation) { animeSubId, animeName ->
