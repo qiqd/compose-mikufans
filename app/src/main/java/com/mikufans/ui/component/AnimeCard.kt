@@ -28,12 +28,12 @@ import coil.compose.AsyncImage
 import com.mikufans.R
 import com.mikufans.util.GifLoader
 import com.mikufans.util.RelativeTime
-import com.mikufans.xmd.miku.entiry.Anime
-import com.mikufans.xmd.util.SourceUtil
+import org.anime.api.AnimeApi
+import org.anime.entity.Animation
 
 @Composable
 fun AnimeCard(
-  anime: Anime? = null,
+  anime: Animation? = null,
   isSimple: Boolean = true,
   episodeIndex: Int = 0,
   dateTime: Long = 0L,
@@ -47,11 +47,11 @@ fun AnimeCard(
       .clip(MaterialTheme.shapes.medium)  // 先裁剪出圆角
       .shadow(0.dp, MaterialTheme.shapes.medium)  // 再添加阴影，使用相同形状
       .clickable {
-        if (SourceUtil.getSourceWithDelay().isEmpty()) {
+        if (AnimeApi.SOURCES_WITH_DELAY.isEmpty()) {
           Toast.makeText(context, "数据源加载中，请稍后再试", Toast.LENGTH_SHORT).show()
           return@clickable
         }
-        onTap(anime?.subId!!, anime.nameCn ?: anime.name ?: "")
+        onTap(anime?.subId!!, anime.titleCn ?: anime.title ?: "")
       },
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(5.dp)
@@ -64,8 +64,8 @@ fun AnimeCard(
           .aspectRatio(2.5f / 3f)
           .clip(MaterialTheme.shapes.medium),
         contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-        model = anime?.coverUrl,
-        contentDescription = anime?.name ?: "暂无标题",
+        model = anime?.coverUrls[0],
+        contentDescription = anime?.titleCn ?: "暂无标题",
         placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current),
       )
     }
@@ -77,14 +77,14 @@ fun AnimeCard(
       verticalArrangement = Arrangement.Top
     ) {
       Text(
-        text = anime?.nameCn ?: "暂无中文标题",
+        text = anime?.titleCn ?: "暂无中文标题",
         textAlign = TextAlign.Start,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,
         fontSize = MaterialTheme.typography.bodyMedium.fontSize
       )
       Text(
-        text = anime?.name ?: "暂无标题",
+        text = anime?.title ?: "暂无标题",
         textAlign = TextAlign.Start,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,
@@ -113,7 +113,7 @@ fun AnimeCard(
           )
           Text(
             color = Color.Gray,
-            text = anime?.type ?: "暂无类型",
+            text = anime?.genre ?: "暂无类型",
             fontSize = MaterialTheme.typography.bodySmall.fontSize,
             textAlign = TextAlign.Start,
             maxLines = 1,

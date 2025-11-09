@@ -2,7 +2,7 @@ package com.mikufans.ui.nav
 
 import androidx.navigation.NavController
 import com.alibaba.fastjson.JSON
-import com.mikufans.xmd.miku.entiry.Anime
+import org.anime.entity.Animation
 import java.net.URLEncoder
 
 object Navigation {
@@ -35,7 +35,7 @@ object Navigation {
     animeId: String,
     animeSubId: String,
     episodeId: String,
-    subject: Anime
+    subject: Animation
   ) {
     val animeSubId = URLEncoder.encode(animeSubId, "UTF-8")
     val animeId = URLEncoder.encode(animeId, "UTF-8")

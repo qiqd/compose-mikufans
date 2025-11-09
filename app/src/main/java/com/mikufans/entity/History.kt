@@ -1,4 +1,4 @@
-package com.mikufans.xmd.miku.entiry
+package com.mikufans.entity
 
 import java.io.Serializable
 
@@ -14,5 +14,5 @@ data class History(
   var episodeIndex: Int? = null,
   var position: Long? = null,
   var time: Long? = null,
-  val source: String? = null,
+  var source: String? = null,
 ) : Serializable

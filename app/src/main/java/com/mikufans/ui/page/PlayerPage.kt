@@ -53,17 +53,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.mikufans.R
+import com.mikufans.entity.History
 import com.mikufans.ui.component.CapVideoPlayer
 import com.mikufans.util.GifLoader
 import com.mikufans.util.LocalStorage
 import com.mikufans.view.CapPlayerViewModel
-import com.mikufans.xmd.miku.entiry.Anime
-import com.mikufans.xmd.miku.entiry.Episode
-import com.mikufans.xmd.miku.entiry.History
-import com.mikufans.xmd.miku.entiry.PlayInfo
-import com.mikufans.xmd.util.SourceUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.anime.api.AnimeApi
+import org.anime.entity.Animation
+import org.anime.entity.Episode
+import org.anime.entity.PlayInfo
 import java.util.Locale
 
 
@@ -75,7 +75,7 @@ fun PlaybackPage(
   navController: NavController?,
   episodeList: List<Episode>,
   activity: ComponentActivity,
-  subject: Anime
+  subject: Animation
 ) {
   val content = LocalContext.current
   val tabs = arrayOf("简介", "剧集")
@@ -86,29 +86,29 @@ fun PlaybackPage(
   var currentPlayingEpisodeId by rememberSaveable { mutableStateOf(episodeList[0].id) }
   var isLoading by rememberSaveable { mutableStateOf(false) }
   var playInfo by rememberSaveable { mutableStateOf(PlayInfo()) }
-  var subject by rememberSaveable { mutableStateOf<Anime>(subject) }
+  var subject by rememberSaveable { mutableStateOf<Animation>(subject) }
   val episodes by rememberSaveable { mutableStateOf<List<Episode>?>(episodeList) }
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
   val coroutineScope = rememberCoroutineScope()
   var isFullscreen by rememberSaveable { mutableStateOf(false) }
-  val sources = SourceUtil.getSourceWithDelay()
+  val sources = AnimeApi.SOURCES_WITH_DELAY
   val capPlayerViewModel: CapPlayerViewModel = viewModel()
   DisposableEffect(Unit) {
     onDispose {
       val history = History(
         id = animeId,
         subId = animeSubId,
-        name = subject.name,
-        nameCn = subject.nameCn,
-        cover = subject.coverUrl,
+        name = subject.title,
+        nameCn = subject.titleCn,
+        cover = subject.coverUrls[0],
         episodeId = currentPlayingEpisodeId,
         episodeIndex = currentPlayingEpisodeIndex,
         position = currentPosition - 5000,
         isLove = isLove,
-        videoUrl = playInfo.currentEpisodeUrl,
+        videoUrl = playInfo.playUri,
         time = System.currentTimeMillis(),
-        source = sources[0].service.name
+        source = sources[0].htmlParser.name
       )
       val list = historyList.toMutableList()
       val idx = list.indexOfFirst { it.subId == animeSubId }
@@ -128,15 +128,15 @@ fun PlaybackPage(
       if (idx >= 0) {
         currentPlayingEpisodeId = historyList[idx].episodeId
         currentPlayingEpisodeIndex = historyList[idx].episodeIndex ?: 0
-//        playInfo.currentEpisodeUrl = historyList[idx].videoUrl
         currentPosition = historyList[idx].position ?: 0L
         isLove = historyList[idx].isLove
       }
       coroutineScope.launch(Dispatchers.IO) {
         try {
-          playInfo.currentEpisodeUrl ?: let {
-            playInfo = sources[0].service.fetchPlayInfo(episodeList[currentPlayingEpisodeIndex].id)
-              ?: PlayInfo()
+          playInfo.playUri ?: let {
+            playInfo =
+              sources[0].htmlParser.fetchPlayInfoSync(episodeList[currentPlayingEpisodeIndex].id)
+                ?: PlayInfo()
           }
         } catch (e: Exception) {
           Log.e("player.error", e.toString())
@@ -167,8 +167,8 @@ fun PlaybackPage(
         key(currentPlayingEpisodeIndex) {
 
           CapVideoPlayer(
-            videoUrl = playInfo.currentEpisodeUrl,
-            title = subject.nameCn ?: subject.name ?: "",
+            videoUrl = playInfo.playUri,
+            title = subject.titleCn ?: subject.title ?: "",
             episodeIndex = currentPlayingEpisodeIndex,
             showNextButton = false,
             showPreviousButton = false,
@@ -218,9 +218,7 @@ fun PlaybackPage(
             currentPlayingEpisodeId = newId
             try {
               coroutineScope.launch(Dispatchers.IO) {
-//                historyPosition = 0L
-
-                playInfo = sources[0].service.fetchPlayInfo(currentPlayingEpisodeId)!!
+                playInfo = sources[0].htmlParser.fetchPlayInfoSync(currentPlayingEpisodeId)!!
                 currentPosition = 0L
               }
             } catch (e: Exception) {
@@ -242,7 +240,7 @@ fun PlaybackPage(
 /* ====================== 简介页 ====================== */
 @Composable
 fun AnimeInfoPage(
-  subject: Anime?, isLove: Boolean = false, loveHandle: (Boolean) -> Unit
+  subject: Animation?, isLove: Boolean = false, loveHandle: (Boolean) -> Unit
 ) {
   subject?.let { anime ->
     LazyColumn(
@@ -260,14 +258,14 @@ fun AnimeInfoPage(
               .width(120.dp)
               .aspectRatio(2 / 3f)
               .clip(MaterialTheme.shapes.medium),
-            model = anime.coverUrl,
-            contentDescription = anime.nameCn ?: anime.name,
+            model = anime.coverUrls[0],
+            contentDescription = anime.titleCn ?: anime.title,
             placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current),
             contentScale = ContentScale.Crop
           )
           Column(modifier = Modifier.weight(1f)) {
             Text(
-              text = anime.nameCn ?: anime.name ?: "未知标题",
+              text = anime.titleCn ?: anime.title ?: "未知标题",
               style = MaterialTheme.typography.titleLarge,
               fontWeight = FontWeight.Bold
             )
@@ -285,7 +283,7 @@ fun AnimeInfoPage(
                 modifier = Modifier.padding(top = 4.dp)
               )
             }
-            anime.totalEpisodes?.let {
+            anime.totalEpisode?.let {
               Text(
                 text = "集数: $it",
                 style = MaterialTheme.typography.bodyMedium,

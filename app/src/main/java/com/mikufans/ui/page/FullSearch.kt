@@ -15,12 +15,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
-import com.mikufans.xmd.util.SourceUtil
+import org.anime.api.AnimeApi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FullSearch(keyword: String, navController: NavController) {
-  val sources = rememberSaveable { mutableListOf(SourceUtil.getSourceWithDelay()) }
+  val sources = rememberSaveable { mutableListOf(AnimeApi.SOURCES_WITH_DELAY) }
   Scaffold(
     topBar = {
       TopAppBar(

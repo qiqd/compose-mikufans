@@ -23,8 +23,8 @@ android {
     applicationId = "com.mikufans"
     minSdk = 26
     targetSdk = 36
-    versionCode = 12
-    versionName = "1.0.12"
+    versionCode = 13
+    versionName = "1.0.13"
     androidResources {
       localeFilters += listOf("en", "zh-rCN")
     }
@@ -58,12 +58,12 @@ android {
     }
   }
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
-
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+    isCoreLibraryDesugaringEnabled = true
   }
   kotlinOptions {
-    jvmTarget = "11"
+    jvmTarget = "17"
   }
   buildFeatures {
     compose = true
@@ -71,6 +71,7 @@ android {
 }
 
 dependencies {
+  coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
   // 添加新依赖项
   implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
   // Compose Video 视频播放库
@@ -90,10 +91,7 @@ dependencies {
   implementation(libs.androidx.compose.foundation.layout)
   implementation(libs.androidx.compose.material3)
   // 添加新依赖项
-  compileOnly(libs.lombok)
-  implementation(libs.fastjson)
   implementation(libs.okhttp)
-  implementation(libs.jsoup)
   implementation(libs.commons.text)
   implementation(libs.jackson.annotations)
   implementation("io.coil-kt:coil-compose:2.7.0")

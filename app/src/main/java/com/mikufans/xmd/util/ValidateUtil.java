@@ -6,10 +6,9 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.util.regex.Pattern;
 
-import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
 
-@Slf4j
+//@Slf4j
 public class ValidateUtil {
     public static String validateResponse(@NotNull Response response) throws IOException {
         if (!response.isSuccessful() || response.body() == null) {

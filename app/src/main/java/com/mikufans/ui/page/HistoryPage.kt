@@ -26,12 +26,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.mikufans.entity.History
 import com.mikufans.ui.component.AnimeCard
 import com.mikufans.ui.component.EmptyCompose
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.LocalStorage
-import com.mikufans.xmd.miku.entiry.Anime
-import com.mikufans.xmd.miku.entiry.History
+import org.anime.entity.Animation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,15 +75,14 @@ fun HistoryPage(navController: NavController, baseHorizontalPadding: Dp) {
           modifier = Modifier.fillMaxSize()
         ) {
           items(historyList.size, key = { it }) { index ->
-            val anime1 = Anime(
-              id = historyList[index].id.toString(),
-              subId = historyList[index].subId?.toInt(),
-              name = historyList[index].name,
-              nameCn = historyList[index].nameCn,
-            )
-            anime1.coverUrl = historyList[index].cover
+            val saveItem = Animation()
+            saveItem.id = historyList[index].id
+            saveItem.subId = historyList[index].subId?.toInt()
+            saveItem.title = historyList[index].name
+            saveItem.titleCn = historyList[index].nameCn
+            saveItem.coverUrls = listOf(historyList[index].cover)
             AnimeCard(
-              anime1,
+              saveItem,
               isSimple = false,
               episodeIndex = historyList[index].episodeIndex ?: 0,
               dateTime = historyList[index].time ?: System.currentTimeMillis()

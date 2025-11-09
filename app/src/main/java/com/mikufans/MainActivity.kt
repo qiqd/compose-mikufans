@@ -32,6 +32,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.alibaba.fastjson.JSON
+import com.mikufans.entity.History
 import com.mikufans.ui.nav.BottomNavigationItem
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.ui.page.AboutPage
@@ -47,20 +48,17 @@ import com.mikufans.ui.page.SubscribePage
 import com.mikufans.ui.theme.MikufansTheme
 import com.mikufans.util.LocalStorage
 import com.mikufans.util.Network
-import com.mikufans.xmd.miku.entiry.Anime
-import com.mikufans.xmd.miku.entiry.Episode
-import com.mikufans.xmd.miku.entiry.History
-import com.mikufans.xmd.util.HttpUtil
-import com.mikufans.xmd.util.SourceUtil
+import org.anime.api.AnimeApi
+import org.anime.entity.Animation
+import org.anime.entity.Episode
 import java.net.URLDecoder
 
 
 class MainActivity : ComponentActivity() {
   init {
-    if (SourceUtil.getSourceWithDelay().isEmpty()) {
+    if (AnimeApi.SOURCES_WITH_DELAY.isEmpty()) {
       Thread {
-        HttpUtil.applicationContext = this
-        SourceUtil.initSources()
+        AnimeApi.initialization()
       }.start()
     }
   }
@@ -145,12 +143,20 @@ fun MainScreen(activity: ComponentActivity) {
       ),
       navController = navController,
       startDestination = BottomNavigationItem.Index.route,
-//      popEnterTransition = {
-//        slideInVertically(initialOffsetY = { it })
-//      },
-//      popExitTransition = {
-//        slideOutVertically(targetOffsetY = { it })
-//      },
+      popEnterTransition = {
+        if (showNavigationBar) {
+          fadeIn()
+        } else {
+          slideInHorizontally(initialOffsetX = { it }) + fadeIn()
+        }
+      },
+      popExitTransition = {
+        if (showNavigationBar) {
+          fadeOut()
+        } else {
+          slideOutHorizontally(targetOffsetX = { -it }) + fadeOut()
+        }
+      },
       enterTransition = {
         if (showNavigationBar) {
           fadeIn()
@@ -221,7 +227,7 @@ fun MainScreen(activity: ComponentActivity) {
         val subject =
           URLDecoder.decode(backStackEntry.arguments?.getString("subject") ?: "", "UTF-8")
         val source = JSON.parseArray(episodes, Episode::class.java)
-        val parseObject = JSON.parseObject(subject, Anime::class.java)
+        val parseObject = JSON.parseObject(subject, Animation::class.java)
         PlaybackPage(animeId, animeSubId, navController, source, activity, parseObject)
       }
       composable(route = Navigation.HISTORY) { HistoryPage(navController, baseHorizontalPadding) }

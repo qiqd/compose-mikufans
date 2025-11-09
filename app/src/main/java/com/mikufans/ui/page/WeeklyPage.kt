@@ -35,11 +35,11 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.ui.component.AnimeCard
 import com.mikufans.ui.nav.Navigation
-import com.mikufans.xmd.miku.entiry.Anime
-import com.mikufans.xmd.miku.entiry.Schedule
-import com.mikufans.xmd.teto.service.impl.RedDrillBit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.anime.entity.Animation
+import org.anime.entity.Schedule
+import org.anime.meta.impl.Bangumi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,12 +60,13 @@ fun WeeklyPage(
     // 转换为 0-6 格式（星期一到星期日）
     (dayOfWeek + 5) % 7
   }
+  val metaService = Bangumi()
   BackHandler { activity.moveTaskToBack(true) }
   LaunchedEffect(Unit) {
     isLoading = true
     try {
       coroutineScope.launch(Dispatchers.IO) {
-        val fetchWeeklyUpdate = RedDrillBit().fetchWeeklyUpdate()
+        val fetchWeeklyUpdate = metaService.fetchWeeklyUpdateSync()
         weekly = fetchWeeklyUpdate
       }
     } catch (e: Exception) {
@@ -113,7 +114,7 @@ fun WeeklyPage(
         if (isLoading) {
           CircularProgressIndicator()
         }
-        WeeklyPageContent(weekDay = weekly[page]?.anime, navController)
+        WeeklyPageContent(weekDay = weekly[page]?.animations, navController)
 
       }
     }
@@ -121,7 +122,7 @@ fun WeeklyPage(
 }
 
 @Composable
-fun WeeklyPageContent(weekDay: List<Anime>?, navController: NavController) {
+fun WeeklyPageContent(weekDay: List<Animation>?, navController: NavController) {
   val lazyGridState = rememberLazyListState()
   if (weekDay == null) {
     Box(

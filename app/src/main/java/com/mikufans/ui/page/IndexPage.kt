@@ -42,6 +42,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -61,10 +62,6 @@ import com.mikufans.R
 import com.mikufans.ui.component.AnimeCard
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.GifLoader
-import com.mikufans.xmd.miku.entiry.Anime
-import com.mikufans.xmd.miku.entiry.WebsiteDelay
-import com.mikufans.xmd.teto.service.impl.RedDrillBit
-import com.mikufans.xmd.util.SourceUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
@@ -72,7 +69,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okio.IOException
-import org.jsoup.Jsoup
+import org.anime.api.AnimeApi
+import org.anime.entity.Animation
+import org.anime.entity.bangmi.SourceWithDelay
+
+import org.anime.meta.impl.Bangumi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,18 +83,20 @@ fun IndexPage(
   baseHorizontalPadding: Dp,
 ) {
   var keyword by rememberSaveable { mutableStateOf("") }
-  var searchResult by rememberSaveable { mutableStateOf<List<Anime>>(emptyList()) }
+  var searchResult by rememberSaveable { mutableStateOf<List<Animation>>(emptyList()) }
   var isLoading by rememberSaveable { mutableStateOf(false) }
   val focusManager = LocalFocusManager.current
   val coroutineScope = rememberCoroutineScope()
   val lazyGridState = rememberLazyListState()
-  var sources by rememberSaveable { mutableStateOf(emptyList<WebsiteDelay>()) }
+  var sources by rememberSaveable { mutableStateOf(emptyList<SourceWithDelay>()) }
   var isRefreshing by rememberSaveable { mutableStateOf(false) }
   val pullToRefreshState = rememberPullToRefreshState()
   var showBottomSheet by rememberSaveable { mutableStateOf(false) }
   val sheetState = rememberModalBottomSheetState()
   val scope = rememberCoroutineScope()
-  val allSource = SourceUtil.getSourceWithDelay()
+  val meteService = Bangumi()
+  var lastRefreshTime by rememberSaveable { mutableLongStateOf(0L) }
+  val refreshCooldown = 5000L
   BackHandler { activity.moveTaskToBack(true) }
   LaunchedEffect(Unit) {
     if (sources.isNotEmpty()) return@LaunchedEffect
@@ -102,7 +105,7 @@ fun IndexPage(
       try {
         withTimeout(30000) {
           while (sources.isEmpty()) {
-            sources = SourceUtil.getSourceWithDelay()
+            sources = AnimeApi.SOURCES_WITH_DELAY.toList()
             delay(100) // 避免过于频繁的检查
           }
         }
@@ -174,14 +177,10 @@ fun IndexPage(
             }
             Log.i("IndexPage-Search", keyword)
             coroutineScope.launch(Dispatchers.IO) {
-
-              val get = Jsoup.connect("https://www.baidu.com").get()
-              Log.d("IndexPage-Search", get.html())
-              return@launch
               try {
                 isLoading = true
 //              val search = sources[0].service.getSearchResult(keyword, 1, 20)
-                val anime = RedDrillBit().fetchSearchResult(keyword, 1, 10)
+                val anime = meteService.fetchSearchResultSync(keyword, 1, 10)
                 val result = anime ?: emptyList()
                 withContext(Dispatchers.Main) {
                   searchResult = result
@@ -226,12 +225,25 @@ fun IndexPage(
         )
       }, onRefresh = {
         coroutineScope.launch(Dispatchers.IO) {
+          val currentTime = System.currentTimeMillis()
+          // 检查是否在冷却时间内
+          if (currentTime - lastRefreshTime < refreshCooldown) {
+            withContext(Dispatchers.Main) {
+              Toast.makeText(
+                navController.context,
+                "操作太频繁，请稍后再试",
+                Toast.LENGTH_SHORT
+              ).show()
+            }
+            isRefreshing = false
+            return@launch
+          }
           try {
             isRefreshing = true
-            SourceUtil.refreshSources()
+            lastRefreshTime = currentTime
+            AnimeApi.initialization()
             delay(2000L)
           } catch (e: Exception) {
-            // 错误处理
             Log.e("IndexPage-Refresh", "刷新失败", e)
           } finally {
             isRefreshing = false
@@ -265,13 +277,13 @@ fun IndexPage(
       ) {
         LazyColumn {
           itemsIndexed(
-            items = allSource.toList(),
+            items = AnimeApi.SOURCES_WITH_DELAY.toList(),
           ) { index, item ->
             ListItem(
               modifier = Modifier.clickable {
                 showBottomSheet = false
                 scope.launch {
-                  SourceUtil.moveDelayToFirst(index)
+                  AnimeApi.moveToTop(index)
                   sheetState.hide()
                 }
               },
@@ -283,13 +295,13 @@ fun IndexPage(
                     .aspectRatio(2.5f / 3f)
                     .clip(MaterialTheme.shapes.medium),
                   contentScale = ContentScale.Fit,
-                  model = item.service.logoUrl,
-                  contentDescription = item.service.name,
+                  model = item.htmlParser.logoUrl,
+                  contentDescription = item.htmlParser.name,
                   placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current),
                 )
               },
               headlineContent = {
-                Text(item.service.name)
+                Text(item.htmlParser.name)
               },
               supportingContent = {
                 Text("延迟: ${item.delay}ms")

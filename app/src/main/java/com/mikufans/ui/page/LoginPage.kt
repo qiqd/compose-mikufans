@@ -47,9 +47,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.mikufans.api.UserApi
 import com.mikufans.util.LocalStorage
-import com.mikufans.xmd.miku.entiry.User
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -215,12 +213,12 @@ fun LoginPage(
               coroutineScope.launch(Dispatchers.IO) {
                 var success = false
                 try {
-                  success = UserApi.register(
-                    User(
-                      email = emailAccount,
-                      password = password
-                    )
-                  )
+//                  success = UserApi.register(
+//                    User(
+//                      email = emailAccount,
+//                      password = password
+//                    )
+//                  )
                 } catch (e: Exception) {
                   Log.e("LoginPage-register-err:", e.message, e)
                   withContext(Dispatchers.Main) {
@@ -253,14 +251,14 @@ fun LoginPage(
 
             } else {
               coroutineScope.launch(Dispatchers.IO) {
-                var token: String
+                var token: String = ""
                 try {
-                  token = UserApi.login(
-                    User(
-                      email = emailAccount,
-                      password = password
-                    )
-                  )
+//                  token = UserApi.login(
+//                    User(
+//                      email = emailAccount,
+//                      password = password
+//                    )
+//                  )
                 } catch (e: Exception) {
                   e.printStackTrace()
                   withContext(Dispatchers.Main) {

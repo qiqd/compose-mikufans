@@ -24,12 +24,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.mikufans.entity.History
 import com.mikufans.ui.component.AnimeCard
 import com.mikufans.ui.component.EmptyCompose
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.LocalStorage
-import com.mikufans.xmd.miku.entiry.Anime
-import com.mikufans.xmd.miku.entiry.History
+import org.anime.entity.Animation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,9 +38,6 @@ fun SubscribePage(
   activity: ComponentActivity,
   baseHorizontalPadding: Dp
 ) {
-  val anime = Anime()
-  anime.coverUrl = "https://img.pan.kg/images/363957_pgptl.webp"
-  anime.name = "夏日口袋"
   val content = LocalContext.current
   val lazyGridState = rememberLazyListState()
   var loveList by remember { mutableStateOf<List<History>>(emptyList()) }
@@ -70,14 +67,11 @@ fun SubscribePage(
           modifier = Modifier.fillMaxSize()
         ) {
           items(loveList.size) { index ->
-            val anime1 = Anime(
-              id = loveList[index].id.toString(),
-              subId = loveList[index].subId?.toInt(),
-              name = loveList[index].nameCn,
-            )
-            anime1.coverUrl = loveList[index].cover
-
-            AnimeCard(anime1) { animeSubId, animeName ->
+            val tempAnimation = Animation()
+            tempAnimation.title = loveList[index].nameCn
+            tempAnimation.titleCn = loveList[index].nameCn
+            tempAnimation.coverUrls = listOf(loveList[index].cover)
+            AnimeCard(tempAnimation) { animeSubId, animeName ->
               Navigation.navigateToAnimeDetail(
                 navController = navController,
                 animeId = loveList[index].id.toString(),
