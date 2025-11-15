@@ -74,5 +74,9 @@
 # 外部jar包
  -keep class org.anime.** { *; }
  -keep interface org.anime.** { *; }
+ -keep class org.anime.entity.bangmi.SourceWithDelay {
+    public ** getHtmlParser();
+}
+
 
 

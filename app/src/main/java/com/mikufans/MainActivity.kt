@@ -31,7 +31,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.alibaba.fastjson.JSON
 import com.mikufans.entity.History
 import com.mikufans.ui.nav.BottomNavigationItem
 import com.mikufans.ui.nav.Navigation
@@ -48,17 +47,16 @@ import com.mikufans.ui.page.SubscribePage
 import com.mikufans.ui.theme.MikufansTheme
 import com.mikufans.util.LocalStorage
 import com.mikufans.util.Network
-import org.anime.api.AnimeApi
-import org.anime.entity.Animation
-import org.anime.entity.Episode
+import com.mikufans.xmd.util.GlobalSharedValue
+import org.anime.api.AnimationApi
 import java.net.URLDecoder
 
 
 class MainActivity : ComponentActivity() {
   init {
-    if (AnimeApi.SOURCES_WITH_DELAY.isEmpty()) {
+    if (AnimationApi.SOURCES_WITH_DELAY.isEmpty()) {
       Thread {
-        AnimeApi.initialization()
+        AnimationApi.initialization()
       }.start()
     }
   }
@@ -200,35 +198,27 @@ fun MainScreen(activity: ComponentActivity) {
           baseHorizontalPadding,
         )
       }
-      composable(Navigation.ANIME_DETAIL + "/{animeId}/{animeSubId}/{animeName}/{source}") { backStackEntry ->
-        var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
-        animeId = URLDecoder.decode(animeId, "UTF-8")
-        var animeName = backStackEntry.arguments?.getString("animeName") ?: ""
-        animeName = URLDecoder.decode(animeName, "UTF-8")
-        var animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
-        animeSubId = URLDecoder.decode(animeSubId, "UTF-8")
-        var source = backStackEntry.arguments?.getString("source") ?: ""
-        source = URLDecoder.decode(source, "UTF-8")
+      composable(Navigation.DETAIL + "/{type}/{id}/{title}") { backStackEntry ->
+        var id = backStackEntry.arguments?.getString("id") ?: "0"
+        val type = backStackEntry.arguments?.getString("type") ?: Navigation.TYPE_ANIMATION
+        id = URLDecoder.decode(id, "UTF-8")
+        var title = backStackEntry.arguments?.getString("title") ?: ""
+        title = URLDecoder.decode(title, "UTF-8")
         DetailPage(
-          animeId,
-          source,
-          animeSubId.toInt(),
-          animeName,
-          navController,
-          baseHorizontalPadding
+          id = id,
+          type = type,
+          title = title,
+          navController = navController,
+          baseHorizontalPadding = baseHorizontalPadding
         )
       }
-      composable(Navigation.ANIME_PLAYER + "/{animeId}/{animeSubId}/{subject}/{episodes}") { backStackEntry ->
-        var animeId = backStackEntry.arguments?.getString("animeId") ?: "0"
-        animeId = URLDecoder.decode(animeId, "UTF-8")
-        var episodes = backStackEntry.arguments?.getString("episodes") ?: ""
-        val animeSubId = backStackEntry.arguments?.getString("animeSubId") ?: ""
-        episodes = URLDecoder.decode(episodes, "UTF-8")
-        val subject =
-          URLDecoder.decode(backStackEntry.arguments?.getString("subject") ?: "", "UTF-8")
-        val source = JSON.parseArray(episodes, Episode::class.java)
-        val parseObject = JSON.parseObject(subject, Animation::class.java)
-        PlaybackPage(animeId, animeSubId, navController, source, activity, parseObject)
+      composable(Navigation.PLAYER + "/{id}/{title}") { backStackEntry ->
+        var id = backStackEntry.arguments?.getString("id") ?: "0"
+        var title = backStackEntry.arguments?.getString("title") ?: ""
+        id = URLDecoder.decode(id, "UTF-8")
+        title = URLDecoder.decode(title, "UTF-8")
+        val episodes = GlobalSharedValue.episodes
+        PlaybackPage(id, title, episodes, navController)
       }
       composable(route = Navigation.HISTORY) { HistoryPage(navController, baseHorizontalPadding) }
       composable(route = Navigation.ABOUT) { AboutPage(navController, baseHorizontalPadding) }
@@ -241,8 +231,6 @@ fun MainScreen(activity: ComponentActivity) {
         val email = navBackStackEntry.arguments?.getString("email") ?: ""
         LoginPage(navController, baseHorizontalPadding, email)
       }
-
-
     }
   }
 }

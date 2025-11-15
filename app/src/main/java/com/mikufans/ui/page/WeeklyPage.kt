@@ -33,13 +33,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.mikufans.ui.component.AnimeCard
+import com.mikufans.ui.component.MediaCard
 import com.mikufans.ui.nav.Navigation
+import com.mikufans.xmd.util.MetaService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.anime.entity.Animation
-import org.anime.entity.Schedule
-import org.anime.meta.impl.Bangumi
+import org.anime.entity.animation.Animation
+import org.anime.entity.animation.Schedule
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,10 +57,9 @@ fun WeeklyPage(
   val todayIndex = remember {
     val calendar = java.util.Calendar.getInstance()
     val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
-    // 转换为 0-6 格式（星期一到星期日）
     (dayOfWeek + 5) % 7
   }
-  val metaService = Bangumi()
+  val metaService = MetaService.bangumi
   BackHandler { activity.moveTaskToBack(true) }
   LaunchedEffect(Unit) {
     isLoading = true
@@ -71,9 +70,7 @@ fun WeeklyPage(
       }
     } catch (e: Exception) {
       Toast.makeText(
-        navController.context,
-        "错误:${e.message}",
-        Toast.LENGTH_SHORT
+        navController.context, "错误:${e.message}", Toast.LENGTH_SHORT
       ).show()
     } finally {
       isLoading = false
@@ -88,8 +85,7 @@ fun WeeklyPage(
     modifier = Modifier.padding(horizontal = baseHorizontalPadding),
     topBar = { TopAppBar(title = { Text("周更表") }) }) { innerPadding ->
     Column(
-      modifier = Modifier
-        .padding(innerPadding)
+      modifier = Modifier.padding(innerPadding)
     ) {
       PrimaryTabRow(
         selectedTabIndex = tabIndex.value
@@ -126,8 +122,7 @@ fun WeeklyPageContent(weekDay: List<Animation>?, navController: NavController) {
   val lazyGridState = rememberLazyListState()
   if (weekDay == null) {
     Box(
-      modifier = Modifier.fillMaxSize(),
-      contentAlignment = Alignment.Center
+      modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
     ) {
       CircularProgressIndicator()
     }
@@ -140,18 +135,20 @@ fun WeeklyPageContent(weekDay: List<Animation>?, navController: NavController) {
     ) {
       items(weekDay.size) { index ->
         val item = weekDay[index]
-        AnimeCard(
-          anime = item
-        ) { animeSubId, animeName ->
-          Navigation.navigateToAnimeDetail(
-            navController = navController,
-            animeSubId = animeSubId.toString(),
-            animeName = animeName,
-          )
-        }
+        MediaCard(
+          id = "",
+          title = item.title,
+          titleCn = item.titleCn,
+          coverUrl = item.coverUrls[0],
+          status = item.status,
+          genre = item.genre,
+          onTap = { id ->
+            Navigation.navigateToDetail(
+              navController = navController, id = id, title = item.titleCn ?: ""
+            )
+          })
       }
     }
-
   }
 }
 

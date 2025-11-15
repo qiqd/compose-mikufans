@@ -156,24 +156,17 @@ fun CapVideoPlayer(
   var playbackSpeed by rememberSaveable { mutableFloatStateOf(1f) }
   val capPlayerViewModel: CapPlayerViewModel = viewModel()
   var controllerLocked by remember { mutableStateOf(false) }
+//  var currentPosition by rememberSaveable { mutableLongStateOf(initPosition) }
   val exoPlayer = remember {
     capPlayerViewModel.getPlayer(current) { exception ->
       onPlayerError(exception)
     }
   }
   releasePlayer(capPlayerViewModel)
-// 初次加载播放器
-  LaunchedEffect(videoUrl) {
-    if (capPlayerViewModel.getCurrentUrl() == videoUrl) return@LaunchedEffect
-    val url = videoUrl ?: playList.getOrNull(episodeIndex) ?: return@LaunchedEffect
-    exoPlayer.setMediaItem(MediaItem.fromUri(url))
-    exoPlayer.prepare()
-    exoPlayer.seekTo(initPosition)
-    exoPlayer.playWhenReady = true
-    capPlayerViewModel.setCurrentUrl(url)
-  }
+  
   // 切换视频时更换 MediaItem，不会重建播放器
   LaunchedEffect(episodeIndex) {
+    if (capPlayerViewModel.episodeIndex == episodeIndex) return@LaunchedEffect
     val newUrl = videoUrl ?: playList.getOrNull(episodeIndex) ?: return@LaunchedEffect
     if (initPosition == 0L) {
       exoPlayer.setMediaItem(MediaItem.fromUri(newUrl))
@@ -181,8 +174,8 @@ fun CapVideoPlayer(
       exoPlayer.seekTo(initPosition)
     }
     exoPlayer.prepare()
-
     exoPlayer.playWhenReady = true
+    capPlayerViewModel.episodeIndex = episodeIndex
   }
 
   LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {

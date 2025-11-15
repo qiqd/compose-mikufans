@@ -25,11 +25,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.entity.History
-import com.mikufans.ui.component.AnimeCard
 import com.mikufans.ui.component.EmptyCompose
+import com.mikufans.ui.component.MediaCard
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.LocalStorage
-import org.anime.entity.Animation
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,19 +67,19 @@ fun SubscribePage(
           modifier = Modifier.fillMaxSize()
         ) {
           items(loveList.size) { index ->
-            val tempAnimation = Animation()
-            tempAnimation.subId = loveList[index].subId?.toInt()
-            tempAnimation.title = loveList[index].name
-            tempAnimation.titleCn = loveList[index].nameCn
-            tempAnimation.coverUrls = listOf(loveList[index].cover)
-            AnimeCard(tempAnimation) { animeSubId, animeName ->
-              Navigation.navigateToAnimeDetail(
-                navController = navController,
-                animeId = loveList[index].id.toString(),
-                animeSubId = animeSubId.toString(),
-                animeName = animeName
-              )
-            }
+            MediaCard(
+              id = loveList[index].id!!,
+              title = loveList[index].name,
+              titleCn = loveList[index].nameCn,
+              coverUrl = loveList[index].cover,
+              onTap = { id ->
+                Navigation.navigateToPlayer(
+                  id = id,
+                  navController = navController,
+                  title = loveList[index].name ?: loveList[index].nameCn ?: "",
+                )
+              }
+            )
           }
         }
       }

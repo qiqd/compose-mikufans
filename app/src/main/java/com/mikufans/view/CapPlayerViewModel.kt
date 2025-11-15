@@ -11,6 +11,7 @@ class CapPlayerViewModel : ViewModel() {
   private var currentPosition: Long = 0L
   private var currentUrl = ""
   private var errorListener: Player.Listener? = null
+  var episodeIndex = -1
   fun getPlayer(
     context: Context,
     onError: (PlaybackException) -> Unit = {}

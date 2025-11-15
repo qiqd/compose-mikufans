@@ -61,51 +61,58 @@ import com.mikufans.xmd.util.StringMatchUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.anime.api.AnimeApi
-import org.anime.entity.Animation
-import org.anime.entity.AnimationDetail
-import org.anime.meta.impl.Bangumi
+import org.anime.api.AnimationApi
+import org.anime.api.ComicApi
+import org.anime.api.NovelApi
+import org.anime.entity.bangmi.SourceWithDelay
+import org.anime.entity.base.Detail
+import org.anime.entity.base.Media
+import org.anime.parser.HtmlParser
 import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailPage(
-  animeId: String = "",
-  playSource: String = "",
-  animeSubId: Int,
-  animeName: String,
+  id: String,
+  title: String,
+  type: String,
   navController: NavController,
   baseHorizontalPadding: Dp
 ) {
   val context = LocalContext.current
-  var subject by rememberSaveable { mutableStateOf<Animation?>(null) }
-  var animeDetail by rememberSaveable { mutableStateOf<AnimationDetail?>(null) }
+//  var subject by rememberSaveable { mutableStateOf<Animation?>(null) }
+  var detail by rememberSaveable { mutableStateOf<Detail<out Media>?>(null) }
   val coroutineScope = rememberCoroutineScope()
   var isLoading by remember { mutableStateOf(false) }
   var isLoadLine by remember { mutableStateOf(true) }
-  val sources = AnimeApi.SOURCES_WITH_DELAY
-  var id by rememberSaveable { mutableStateOf(animeId) }
-  val bangumi by rememberSaveable { mutableStateOf(Bangumi()) }
-  LaunchedEffect(Unit) {
-    if (subject != null || animeDetail != null) {
-      return@LaunchedEffect
+  val animationApi = AnimationApi.SOURCES_WITH_DELAY
+  val comicApi = ComicApi.SOURCES_WITH_DELAY
+  val novelApi = NovelApi.SOURCES_WITH_DELAY
+  var targetApi by rememberSaveable { mutableStateOf<List<SourceWithDelay<out HtmlParser>>?>(null) }
+  var id by rememberSaveable { mutableStateOf(id) }
+  val apiSelect: () -> Unit = {
+    when (type) {
+      Navigation.TYPE_ANIMATION -> {
+        targetApi = animationApi
+      }
+
+      Navigation.TYPE_COMIC -> targetApi = comicApi
+      Navigation.TYPE_NOVEL -> targetApi = novelApi
     }
+  }
+  val fetchDetail: () -> Unit = {
     isLoading = true
+    val htmlParser = targetApi!![0].htmlParser
     coroutineScope.launch(Dispatchers.IO) {
-      val service = sources.firstOrNull()?.htmlParser ?: return@launch
       try {
-        val subjectSearch = bangumi.fetchSubjectSync(animeSubId)
-        subject = subjectSearch
-        isLoading = false
-        val searchResult = service.fetchSearchSync(subjectSearch.titleCn, 1, 10)
-        val nameCnMap = searchResult.associateBy { it.titleCn }
-        val bestMatch = StringMatchUtil.findBestMatchWithJaroWinkler(
-          nameCnMap.keys.toList(),
-          subjectSearch.titleCn
-        )
-        val targetAnime = nameCnMap[bestMatch]
-        animeDetail = service.fetchDetailSync(targetAnime?.id)
-        id = targetAnime?.id!!
+        if (id.isBlank()) {
+          val media = htmlParser.fetchSearchSync(title, 1, 10)
+          val mapToMedia = media.associateBy { it.titleCn }
+          val bestMatch =
+            StringMatchUtil.findBestMatchWithJaroWinkler(media.map { it.titleCn }, title)
+          mapToMedia[bestMatch].let { id = it?.id ?: "" }
+        }
+        detail = htmlParser.fetchDetailSync(id)
         launch(Dispatchers.Main) { isLoading = false }
       } catch (e: Exception) {
         e.printStackTrace()
@@ -118,6 +125,11 @@ fun DetailPage(
         isLoadLine = false
       }
     }
+  }
+  LaunchedEffect(Unit) {
+    if (detail != null) return@LaunchedEffect
+    apiSelect()
+    fetchDetail()
   }
 
   Scaffold(
@@ -141,11 +153,10 @@ fun DetailPage(
               .wrapContentSize(Alignment.Center)
           ) { CircularProgressIndicator() }
 
-          subject != null -> AnimeDetailContent(
+          detail != null -> AnimeDetailContent(
             coroutineScope,
             id,
-            subject!!,
-            animeDetail,
+            detail!!,
             navController,
             isLoadLine
           )
@@ -161,23 +172,20 @@ fun DetailPage(
   )
 }
 
-/* 3. 头部+简介改用 Subject */
 @Composable
 private fun AnimeDetailContent(
   coroutineScope: CoroutineScope,
   animeId: String,
-  subject: Animation,
-  animeDetail: AnimationDetail?,
+  detail: Detail<out Media>,
   navController: NavController,
   isLoadLine: Boolean
 ) {
 
   val tabs = arrayOf("路线", "简介", "角色", "制作信息")
-//  val coroutineScope = rememberCoroutineScope()
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
   Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-    Row(modifier = Modifier.fillMaxWidth()) { AnimeHeader(subject) }
+    Row(modifier = Modifier.fillMaxWidth()) { AnimeHeader(detail.media) }
     Column(
       modifier = Modifier
         .weight(1f)
@@ -204,16 +212,15 @@ private fun AnimeDetailContent(
       ) { index ->
         when (index) {
           0 -> PlayLine(
-            animeDetail = animeDetail,
+            detail = detail,
             isLoadLine = isLoadLine,
             navController = navController,
             animeId = animeId,
-            subject = subject
           )
 
-          1 -> SimpleIntroduction(subject)
-          2 -> ActorInformation(subject)
-          3 -> InformationErstellen(subject)
+          1 -> SimpleIntroduction(detail.media)
+          2 -> ActorInformation(detail.media)
+          3 -> InformationSteeler(detail.media)
         }
       }
     }
@@ -222,14 +229,14 @@ private fun AnimeDetailContent(
 
 /* 5. 头部信息全部来自 Subject */
 @Composable
-private fun AnimeHeader(subject: Animation) {
+private fun AnimeHeader(media: Media) {
   Row(
     modifier = Modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.spacedBy(16.dp)
   ) {
     AsyncImage(
-      model = subject.coverUrls[0],
-      contentDescription = subject.titleCn,
+      model = media.coverUrls[0],
+      contentDescription = media.titleCn,
       contentScale = ContentScale.Crop,
       modifier = Modifier
         .width(150.dp)
@@ -238,14 +245,14 @@ private fun AnimeHeader(subject: Animation) {
     )
 
     Column(Modifier.weight(1f)) {
-      subject.titleCn?.let {
+      media.titleCn?.let {
         Text(
           text = it,
           style = MaterialTheme.typography.titleLarge,
           fontWeight = FontWeight.Bold
         )
       }
-      subject.title?.let {
+      media.title?.let {
         Text(
           text = it,
           style = MaterialTheme.typography.titleMedium,
@@ -253,62 +260,61 @@ private fun AnimeHeader(subject: Animation) {
           color = Color.Gray
         )
       }
-      subject.platform?.let {
+//      media.platform?.let {
+//        Text(
+//          text = it,
+//          style = MaterialTheme.typography.bodyLarge,
+//          color = Color.Gray
+//        )
+//      }
+      media.status?.let {
         Text(
           text = it,
           style = MaterialTheme.typography.bodyLarge,
           color = Color.Gray
         )
       }
-      subject.status?.let {
+//      media.totalEpisode?.let {
+//        Text(
+//          text = "总集数: $it",
+//          style = MaterialTheme.typography.bodyLarge,
+//          color = Color.Gray
+//        )
+//      }
+      media.genre?.let {
         Text(
-          text = it,
-          style = MaterialTheme.typography.bodyLarge,
-          color = Color.Gray
-        )
-      }
-      subject.totalEpisode?.let {
-        Text(
-          text = "总集数: $it",
-          style = MaterialTheme.typography.bodyLarge,
-          color = Color.Gray
-        )
-      }
-      subject.genre?.let {
-        Text(
-          text = subject.genre ?: "",
+          text = media.genre ?: "",
           style = MaterialTheme.typography.bodyLarge,
           color = Color.Gray
         )
       }
       Spacer(Modifier.height(8.dp))
 
-      subject.rating?.let {
+      media.rating?.let {
         Text("评分: $it", style = MaterialTheme.typography.bodyMedium)
       }
 
 
-      subject.ariDate?.let {
-        Text("年份: $it", style = MaterialTheme.typography.bodyMedium)
-      }
+//      media.airDate?.let {
+//        Text("年份: $it", style = MaterialTheme.typography.bodyMedium)
+//      }
     }
   }
 }
 
 @Composable
 fun PlayLine(
-  animeDetail: AnimationDetail?,
+  detail: Detail<out Media>,
   isLoadLine: Boolean,
   navController: NavController,
   animeId: String,
-  subject: Animation
 ) {
   LazyColumn(
     modifier = Modifier
       .fillMaxSize(),
     verticalArrangement = Arrangement.spacedBy(8.dp)
   ) {
-    animeDetail?.sources?.let { sourceList ->
+    detail.episodes?.let { sourceList ->
       itemsIndexed(sourceList) { index, source ->
         source.episodes?.let { episodes ->
           Card(
@@ -317,13 +323,12 @@ fun PlayLine(
               .fillMaxWidth()
               .clickable {
                 val json = URLEncoder.encode(JSON.toJSONString(episodes), "UTF-8")
-                //跳转
-                Navigation.navigateToAnimePlayer(
-                  navController,
-                  animeId,
-                  subject.subId.toString(),
-                  json,
-                  subject
+                //跳转,todo
+                Navigation.navigateToPlayer(
+                  id = animeId,
+                  title = detail.media.titleCn ?: "",
+                  episodes = episodes.map { it.id },
+                  navController = navController,
                 )
               }
           ) {
@@ -362,12 +367,12 @@ fun PlayLine(
 }
 
 @Composable
-fun SimpleIntroduction(subject: Animation) {
+fun SimpleIntroduction(media: Media) {
   Card(modifier = Modifier.fillMaxWidth()) {
     Column(Modifier.padding(16.dp)) {
       Text("简介", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
       Text(
-        text = subject.description ?: "暂无简介",
+        text = media.description ?: "暂无简介",
         style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier.padding(top = 8.dp)
       )
@@ -376,13 +381,13 @@ fun SimpleIntroduction(subject: Animation) {
 }
 
 @Composable
-fun ActorInformation(subject: Animation) {
+fun ActorInformation(media: Media) {
   EmptyCompose("暂无演员信息")
   //todo 2025-10-22
 }
 
 @Composable
-fun InformationErstellen(subject: Animation) {
+fun InformationSteeler(media: Media) {
   EmptyCompose("暂无信息")
   //todo 2025-10-22
 }

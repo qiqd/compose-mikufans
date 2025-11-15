@@ -27,11 +27,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mikufans.entity.History
-import com.mikufans.ui.component.AnimeCard
 import com.mikufans.ui.component.EmptyCompose
+import com.mikufans.ui.component.MediaCard
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.LocalStorage
-import org.anime.entity.Animation
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,9 +62,7 @@ fun HistoryPage(navController: NavController, baseHorizontalPadding: Dp) {
       modifier = Modifier
         .fillMaxSize()
         .padding(innerPadding),
-
-
-      ) {
+    ) {
       if (historyList.isEmpty()) {
         EmptyCompose(text = "暂无历史记录")
       } else {
@@ -75,26 +73,21 @@ fun HistoryPage(navController: NavController, baseHorizontalPadding: Dp) {
           modifier = Modifier.fillMaxSize()
         ) {
           items(historyList.size, key = { it }) { index ->
-            val saveItem = Animation()
-            saveItem.id = historyList[index].id
-            saveItem.subId = historyList[index].subId?.toInt()
-            saveItem.title = historyList[index].name
-            saveItem.titleCn = historyList[index].nameCn
-            saveItem.coverUrls = listOf(historyList[index].cover)
-            AnimeCard(
-              saveItem,
-              isSimple = false,
-              episodeIndex = historyList[index].episodeIndex ?: 0,
-              dateTime = historyList[index].time ?: System.currentTimeMillis()
-            ) { animeSubId, animeName ->
-              Navigation.navigateToAnimeDetail(
-                navController = navController,
-                playSource = historyList[index].source!!,
-                animeSubId = animeSubId.toString(),
-                animeId = historyList[index].id,
-                animeName = animeName,
-              )
-            }
+            MediaCard(
+              id = historyList[index].id!!,
+              title = historyList[index].name,
+              titleCn = historyList[index].nameCn,
+              coverUrl = historyList[index].cover,
+              episodeIndex = historyList[index].episodeIndex,
+              lastViewAt = historyList[index].time,
+              onTap = {
+                Navigation.navigateToPlayer(
+                  navController = navController,
+                  id = historyList[index].id!!,
+                  title = historyList[index].nameCn ?: historyList[index].name ?: "",
+                )
+              }
+            )
           }
         }
       }

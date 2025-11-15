@@ -1,47 +1,45 @@
 package com.mikufans.ui.nav
 
 import androidx.navigation.NavController
-import com.alibaba.fastjson.JSON
-import org.anime.entity.Animation
+import com.mikufans.xmd.util.GlobalSharedValue
 import java.net.URLEncoder
 
 object Navigation {
-  const val ANIME_DETAIL = "animeDetail"
-  const val ANIME_PLAYER = "animePlayer"
+  const val DETAIL = "Detail"
+  const val PLAYER = "Player"
   const val HISTORY = "history"
   const val ABOUT = "about"
   const val FULL_SEARCH = "fullSearch"
   const val SETTING = "setting"
   const val LOGIN = "login"
-  fun navigateToAnimeDetail(
+  const val TYPE_ANIMATION = "animation"
+  const val TYPE_COMIC = "comic"
+  const val TYPE_NOVEL = "novel"
+
+  fun navigateToDetail(
+    id: String,
+    title: String,
+    type: String = TYPE_ANIMATION,
     navController: NavController,
-    animeId: String? = "",
-    playSource: String = "",
-    animeSubId: String,
-    animeName: String
   ) {
-    val enCodeAnimeId = URLEncoder.encode(animeId, "UTF-8")
-    val enCodeAnimeSubId = URLEncoder.encode(animeSubId, "UTF-8")
-    val enCodePlaySource = URLEncoder.encode(playSource, "UTF-8")
-    val enCodeAnimeName = URLEncoder.encode(animeName, "UTF-8")
-    navController.navigate("$ANIME_DETAIL/$enCodeAnimeId/$enCodeAnimeSubId/$enCodeAnimeName/$enCodePlaySource") {
+    val enCodeId = URLEncoder.encode(id, "UTF-8")
+    val enCodeTitle = URLEncoder.encode(title, "UTF-8")
+    navController.navigate("$DETAIL/$type/$enCodeId/$enCodeTitle") {
       launchSingleTop = true
       restoreState = true
     }
   }
 
-  fun navigateToAnimePlayer(
+  fun navigateToPlayer(
+    id: String,
+    title: String,
     navController: NavController,
-    animeId: String,
-    animeSubId: String,
-    episodeId: String,
-    subject: Animation
+    episodes: List<String> = emptyList()
   ) {
-    val animeSubId = URLEncoder.encode(animeSubId, "UTF-8")
-    val animeId = URLEncoder.encode(animeId, "UTF-8")
-    val eps = URLEncoder.encode(episodeId, "UTF-8")
-    val subject = URLEncoder.encode(JSON.toJSONString(subject), "UTF-8")
-    navController.navigate("$ANIME_PLAYER/$animeId/$animeSubId/$subject/$eps") {
+    val enCodeId = URLEncoder.encode(id, "UTF-8")
+    val enCodeTitle = URLEncoder.encode(title, "UTF-8")
+    GlobalSharedValue.episodes = episodes
+    navController.navigate("$PLAYER/$enCodeId/$enCodeTitle") {
       launchSingleTop = true
       restoreState = true
     }
