@@ -82,52 +82,59 @@ fun PlaybackPage(
   var isLove by rememberSaveable { mutableStateOf(false) }
   var currentPosition by rememberSaveable { mutableLongStateOf(0L) }
   var historyPosition by rememberSaveable { mutableLongStateOf(0L) }
-  var currentPlayingEpisodeIndex by rememberSaveable { mutableIntStateOf(0) }
+  var playerKey by rememberSaveable { mutableIntStateOf(0) }
   var currentPlayingEpisodeId by rememberSaveable { mutableStateOf("") }
   var isLoading by rememberSaveable { mutableStateOf(false) }
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
   val coroutineScope = rememberCoroutineScope()
   var isFullscreen by rememberSaveable { mutableStateOf(false) }
-  val capPlayerViewModel: CapPlayerViewModel = viewModel()
+  val capPlayer: CapPlayerViewModel = viewModel()
   val bangumi by rememberSaveable { mutableStateOf(MetaService.bangumi) }
   var animation by rememberSaveable { mutableStateOf<Animation?>(null) }
   var localHistory by rememberSaveable { mutableStateOf<List<History>>(emptyList()) }
   var viewInfo by rememberSaveable { mutableStateOf<ViewInfo?>(null) }
   var episodes by rememberSaveable { mutableStateOf(episodes) }
+  var episodeIndex by rememberSaveable { mutableIntStateOf(0) }
   val fetchMetaInfo: () -> Unit = {
     coroutineScope.launch(Dispatchers.IO) {
-      val animations = bangumi.fetchSearchResultSync(title, 1, 1)
-      val titleToAnimationMap = animations.associateBy { it.titleCn }
-      val bestMatch =
-        StringMatchUtil.findBestMatchWithJaroWinkler(animations.map { it.titleCn }, title)
-      animation = titleToAnimationMap[bestMatch]
+      try {
+        val animations = bangumi.fetchSearchResultSync(title, 1, 1)
+        val titleToAnimationMap = animations.associateBy { it.titleCn }
+        val bestMatch =
+          StringMatchUtil.findBestMatchWithJaroWinkler(animations.map { it.titleCn }, title)
+        animation = titleToAnimationMap[bestMatch]
+      } catch (e: Exception) {
+        withContext(Dispatchers.Main) {
+          Toast.makeText(navController.context, "错误:${e.message}", Toast.LENGTH_SHORT).show()
+        }
+      }
     }
   }
   val loadLocalHistory: () -> Unit = {
     LocalStorage.getList(content, "view:history", History::class.java)?.toMutableList()
       ?.let { localHistory = it }
-    val idx = localHistory.indexOfFirst { it.subId == animation?.id }
+    val idx = localHistory.indexOfFirst { it.subId == animation?.subId.toString() }
     if (idx >= 0) {
       currentPlayingEpisodeId = localHistory[idx].episodeId!!
-      currentPlayingEpisodeIndex = localHistory[idx].episodeIndex ?: 0
-      currentPosition = localHistory[idx].position ?: 0L
+      episodeIndex = localHistory[idx].episodeIndex ?: 0
+      historyPosition = localHistory[idx].position ?: 0L
       isLove = localHistory[idx].isLove
     } else {
       currentPlayingEpisodeId = episodes[0]
-      currentPlayingEpisodeIndex = 0
+      episodeIndex = 0
       currentPosition = 0L
     }
   }
   val updateLocalHistory: () -> Unit = {
     val history = History(
       id = id,
-      subId = animation?.id,
+      subId = animation?.subId.toString(),
       name = animation?.title,
       nameCn = animation?.titleCn,
       cover = animation?.coverUrls[0],
       episodeId = currentPlayingEpisodeId,
-      episodeIndex = currentPlayingEpisodeIndex,
+      episodeIndex = episodeIndex,
       videoUrl = viewInfo?.urls[0],
       position = currentPosition - 5000,
       isLove = isLove,
@@ -140,12 +147,15 @@ fun PlaybackPage(
   }
   val onEpisodeChange: (episodeId: String, index: Int) -> Unit = { episodeId, index ->
     isLoading = true
-    currentPlayingEpisodeIndex = index
     currentPlayingEpisodeId = episodeId
+    episodeIndex = index
+    capPlayer.pausePlayer(true)
     coroutineScope.launch(Dispatchers.IO) {
       try {
         Log.w("PlayerPage", "onEpisodeChange: $episodeId, $index")
+        historyPosition = 0L
         animationApi[0].htmlParser.fetchViewSync(episodeId)?.let { viewInfo = it }
+        playerKey = index
       } catch (e: Exception) {
         withContext(Dispatchers.Main) {
           Toast.makeText(
@@ -153,7 +163,6 @@ fun PlaybackPage(
           ).show()
         }
       } finally {
-        currentPosition = 0L
         isLoading = false
       }
     }
@@ -176,7 +185,7 @@ fun PlaybackPage(
       }
     }
 
-    onEpisodeChange(currentPlayingEpisodeId, currentPlayingEpisodeIndex)
+    onEpisodeChange(currentPlayingEpisodeId, playerKey)
   }
 
 
@@ -197,22 +206,32 @@ fun PlaybackPage(
       Row(
         modifier = Modifier.fillMaxWidth()
       ) {
-        viewInfo?.urls?.let {
+        if (viewInfo == null || isLoading) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .aspectRatio(16f / 9),
+            contentAlignment = Alignment.Center
+          ) {
+            CircularProgressIndicator()
+          }
+        } else {
           CapVideoPlayer(
+            key = playerKey.toString(),
             videoUrl = viewInfo?.urls?.getOrNull(0),
             title = animation?.titleCn ?: animation?.title ?: "暂无标题",
-            episodeIndex = currentPlayingEpisodeIndex,
+            episodeIndex = episodeIndex,
             showNextButton = false,
             showPreviousButton = false,
             navController = navController,
-            initPosition = currentPosition,
+            initPosition = historyPosition,
             onPositionChange = {
-              historyPosition = it
+              currentPosition = it
             },
             onLeadingBackButtonTab = {
               if (!isFullscreen) {
                 navController.popBackStack()
-                capPlayerViewModel.releasePlayer()
+                capPlayer.releasePlayer()
               }
             },
             onLandscapeChange = {
@@ -223,24 +242,17 @@ fun PlaybackPage(
                 .show()
             }
           )
-        } ?: run {
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .aspectRatio(16f / 9),
-            contentAlignment = Alignment.Center
-          ) {
-            CircularProgressIndicator()
-          }
         }
-
       }
 
       PrimaryTabRow(selectedTabIndex = tabIndex.value, Modifier.padding(horizontal = 10.dp)) {
         tabs.forEachIndexed { index, title ->
-          Tab(selected = tabIndex.value == index, onClick = {
-            coroutineScope.launch { pagerState.animateScrollToPage(index) }
-          }) {
+          Tab(
+            selectedContentColor = MaterialTheme.colorScheme.primary,
+            selected = tabIndex.value == index,
+            onClick = {
+              coroutineScope.launch { pagerState.animateScrollToPage(index) }
+            }) {
             Text(text = title, modifier = Modifier.padding(10.dp))
           }
         }
@@ -251,9 +263,9 @@ fun PlaybackPage(
         when (page) {
           0 -> AnimeInfoPage(animation, isLove) { isLove = it }
           1 -> EpisodePage(
-            episodes = episodes, activeIndex = currentPlayingEpisodeIndex
+            episodes = episodes, activeIndex = episodeIndex
           ) { newId, index ->
-            if (index == currentPlayingEpisodeIndex || isLoading) return@EpisodePage
+            if (index == episodeIndex || isLoading) return@EpisodePage
             onEpisodeChange(newId, index)
           }
         }

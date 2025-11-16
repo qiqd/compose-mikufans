@@ -1,6 +1,7 @@
 package com.mikufans.ui.component
 
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -40,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -112,7 +114,7 @@ fun CapVideoPlayer(
   LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
     exoPlayer.play()
   }
-  BackHandler(enabled = isLandscape()) {
+  BackHandler(enabled = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
     isFullscreen = false
     Orientation.forceOrientation(content, false)
   }
@@ -158,7 +160,11 @@ fun CapVideoPlayer(
   Box(
     modifier = modifier
       .clickable { showController = !showController }
-      .padding(if (isLandscape()) PaddingValues(vertical = 30.dp) else PaddingValues(0.dp))) {
+      .padding(
+        if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) PaddingValues(
+          vertical = 30.dp
+        ) else PaddingValues(0.dp)
+      )) {
     /* 原来的 PlayerView */
     AndroidView(
       factory = {
@@ -170,7 +176,11 @@ fun CapVideoPlayer(
         }
       }, modifier = Modifier
         .fillMaxHeight()
-        .padding(if (isLandscape()) PaddingValues(10.dp) else PaddingValues(0.dp))
+        .padding(
+          if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) PaddingValues(
+            10.dp
+          ) else PaddingValues(0.dp)
+        )
     )
 
     AnimatedVisibility(

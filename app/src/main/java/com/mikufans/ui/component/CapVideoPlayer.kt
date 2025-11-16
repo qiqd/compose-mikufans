@@ -114,6 +114,7 @@ fun CapVideoPlayer(
   modifier: Modifier = Modifier,
   videoUrl: String? = null,
   title: String,
+  key: String,
   episodeIndex: Int = 0,
   initPosition: Long = 0L,
   showHeader: Boolean = true,
@@ -156,26 +157,30 @@ fun CapVideoPlayer(
   var playbackSpeed by rememberSaveable { mutableFloatStateOf(1f) }
   val capPlayerViewModel: CapPlayerViewModel = viewModel()
   var controllerLocked by remember { mutableStateOf(false) }
-//  var currentPosition by rememberSaveable { mutableLongStateOf(initPosition) }
+
   val exoPlayer = remember {
     capPlayerViewModel.getPlayer(current) { exception ->
       onPlayerError(exception)
     }
   }
   releasePlayer(capPlayerViewModel)
-  
+
   // 切换视频时更换 MediaItem，不会重建播放器
-  LaunchedEffect(episodeIndex) {
-    if (capPlayerViewModel.episodeIndex == episodeIndex) return@LaunchedEffect
+  LaunchedEffect(key) {
+    if (capPlayerViewModel.key == key) return@LaunchedEffect
     val newUrl = videoUrl ?: playList.getOrNull(episodeIndex) ?: return@LaunchedEffect
-    if (initPosition == 0L) {
-      exoPlayer.setMediaItem(MediaItem.fromUri(newUrl))
-    } else {
-      exoPlayer.seekTo(initPosition)
-    }
+//    if (initPosition == 0L) {
+//      exoPlayer.setMediaItem(MediaItem.fromUri(newUrl))
+//    } else {
+//      exoPlayer.seekTo(initPosition)
+//    }
+    exoPlayer.setMediaItem(MediaItem.fromUri(newUrl))
+    exoPlayer.seekTo(initPosition)
     exoPlayer.prepare()
     exoPlayer.playWhenReady = true
-    capPlayerViewModel.episodeIndex = episodeIndex
+    capPlayerViewModel.episodeIndex = key
+    capPlayerViewModel.key = key
+    currentEpisodeIndex = episodeIndex
   }
 
   LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
@@ -236,7 +241,7 @@ fun CapVideoPlayer(
     }
   }
   Box(
-    modifier = if (isLandscape()) {
+    modifier = if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
       modifier.fillMaxSize()
     } else {
       modifier
@@ -285,7 +290,10 @@ fun CapVideoPlayer(
     //自定义控制区域
     Column(
       modifier = Modifier.padding(
-        if (isLandscape()) PaddingValues(vertical = 15.dp, horizontal = 30.dp) else PaddingValues(
+        if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) PaddingValues(
+          vertical = 15.dp,
+          horizontal = 30.dp
+        ) else PaddingValues(
           0.dp
         )
       )
@@ -315,7 +323,7 @@ fun CapVideoPlayer(
             }
             Text(text = title)
           }
-          if (isLandscape()) {
+          if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
             Row(modifier = Modifier.wrapContentWidth()) {
               Text(text = "${LocalDateTime.now().hour}:${LocalDateTime.now().minute}")
             }
@@ -362,7 +370,7 @@ fun CapVideoPlayer(
                   showMediaPropertyChangeText = false
                   Log.d("Gesture-brightness", "Drag end")
                 },
-              ) { change, dragAmount ->
+              ) { _, dragAmount ->
 
                 // 监听 Y 轴滑动事件，实现调整亮度功能
                 val attrs = window.attributes
@@ -419,7 +427,7 @@ fun CapVideoPlayer(
                   showMediaPropertyChangeText = false
                   Log.d("Gesture-volume", "Drag end")
                 },
-              ) { change, dragAmount ->
+              ) { _, dragAmount ->
                 val density = dragAmount / deviceDensity
                 if ((density % 5).toInt() != 0) return@detectVerticalDragGestures
 
@@ -534,7 +542,7 @@ fun CapVideoPlayer(
           horizontalArrangement = Arrangement.spacedBy(15.dp),
         ) {
           //上一个
-          AnimatedVisibility(visible = isLandscape() && showPreviousButton) {
+          AnimatedVisibility(visible = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE && showPreviousButton) {
             IconButton(onClick = {
               if (playList.isEmpty() || currentEpisodeIndex <= 0) {
                 onPreviousTab()
@@ -560,7 +568,7 @@ fun CapVideoPlayer(
             )
           }
           //下一个
-          AnimatedVisibility(visible = isLandscape() && showNextButton) {
+          AnimatedVisibility(visible = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE && showNextButton) {
             IconButton(onClick = {
               if (playList.isEmpty() || currentEpisodeIndex >= playList.size - 1) {
                 onNextTab()
@@ -733,10 +741,5 @@ fun CapVideoPlayer(
       }
     }
   }
-
 }
-
-@Composable
-fun isLandscape(): Boolean =
-  LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 

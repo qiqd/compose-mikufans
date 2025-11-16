@@ -11,7 +11,8 @@ class CapPlayerViewModel : ViewModel() {
   private var currentPosition: Long = 0L
   private var currentUrl = ""
   private var errorListener: Player.Listener? = null
-  var episodeIndex = -1
+  var episodeIndex = ""
+  var key = ""
   fun getPlayer(
     context: Context,
     onError: (PlaybackException) -> Unit = {}
@@ -49,9 +50,11 @@ class CapPlayerViewModel : ViewModel() {
     exoPlayer = null
   }
 
-  fun getCurrentUrl(): String = currentUrl
-
-  fun setCurrentUrl(url: String) {
-    currentUrl = url
+  fun pausePlayer(isPause: Boolean) {
+    if (isPause) {
+      exoPlayer?.pause()
+    } else {
+      exoPlayer?.play()
+    }
   }
 }
