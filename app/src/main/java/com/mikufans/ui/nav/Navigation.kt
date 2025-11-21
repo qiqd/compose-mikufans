@@ -1,7 +1,7 @@
 package com.mikufans.ui.nav
 
 import androidx.navigation.NavController
-import com.mikufans.xmd.util.GlobalSharedValue
+import com.mikufans.util.GlobalSharedValue
 import java.net.URLEncoder
 
 object Navigation {

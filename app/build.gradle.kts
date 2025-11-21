@@ -71,6 +71,10 @@ android {
 }
 
 dependencies {
+
+  implementation("org.jsoup:jsoup:1.15.3")
+  implementation("com.alibaba:fastjson:1.2.8")
+
   coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
   // 添加新依赖项
   implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))

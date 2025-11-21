@@ -1,6 +1,5 @@
 package com.mikufans.ui.page
 
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
@@ -52,18 +51,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.mikufans.R
+import com.mikufans.api.AnimationService
 import com.mikufans.entity.History
 import com.mikufans.ui.component.CapVideoPlayer
 import com.mikufans.util.GifLoader
 import com.mikufans.util.LocalStorage
+import com.mikufans.util.StringMatchUtil
 import com.mikufans.view.CapPlayerViewModel
-import com.mikufans.xmd.util.MetaService
-import com.mikufans.xmd.util.StringMatchUtil
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.anime.api.AnimationApi
 import org.anime.entity.animation.Animation
+import org.anime.entity.base.Detail
+import org.anime.entity.base.Episode
 import org.anime.entity.base.ViewInfo
 import java.util.Locale
 
@@ -73,12 +71,10 @@ import java.util.Locale
 fun PlaybackPage(
   id: String,
   title: String,
-  episodes: List<String> = emptyList(),
   navController: NavController,
 ) {
   val content = LocalContext.current
   val tabs = arrayOf("简介", "剧集")
-  val animationApi = AnimationApi.SOURCES_WITH_DELAY
   var isLove by rememberSaveable { mutableStateOf(false) }
   var currentPosition by rememberSaveable { mutableLongStateOf(0L) }
   var historyPosition by rememberSaveable { mutableLongStateOf(0L) }
@@ -90,38 +86,52 @@ fun PlaybackPage(
   val coroutineScope = rememberCoroutineScope()
   var isFullscreen by rememberSaveable { mutableStateOf(false) }
   val capPlayer: CapPlayerViewModel = viewModel()
-  val bangumi by rememberSaveable { mutableStateOf(MetaService.bangumi) }
   var animation by rememberSaveable { mutableStateOf<Animation?>(null) }
   var localHistory by rememberSaveable { mutableStateOf<List<History>>(emptyList()) }
   var viewInfo by rememberSaveable { mutableStateOf<ViewInfo?>(null) }
-  var episodes by rememberSaveable { mutableStateOf(episodes) }
+  var episodes by rememberSaveable { mutableStateOf<List<Episode>>(emptyList()) }
   var episodeIndex by rememberSaveable { mutableIntStateOf(0) }
-  val fetchMetaInfo: () -> Unit = {
-    coroutineScope.launch(Dispatchers.IO) {
-      try {
-        val animations = bangumi.fetchSearchResultSync(title, 1, 1)
-        val titleToAnimationMap = animations.associateBy { it.titleCn }
-        val bestMatch =
+  var historyIndex by rememberSaveable { mutableIntStateOf(-1) }
+  var animationDetail by rememberSaveable { mutableStateOf<Detail<Animation>?>(null) }
+  val sourceIndex by rememberSaveable { mutableIntStateOf(0) }
+  val fetchPlayerInfo: (episodeId: String, index: Int) -> Unit = { id, index ->
+    isLoading = true
+    currentPlayingEpisodeId = id
+    episodeIndex = index
+    capPlayer.pausePlayer(true)
+    coroutineScope.launch {
+      AnimationService.fetchSearchSync(title) {
+        Toast.makeText(content, it.message, Toast.LENGTH_SHORT).show()
+      }.takeIf { it.isNotEmpty() }?.let { animations ->
+        val map = animations.associateBy { a -> a.titleCn }
+        val matchTitle =
           StringMatchUtil.findBestMatchWithJaroWinkler(animations.map { it.titleCn }, title)
-        animation = titleToAnimationMap[bestMatch]
-      } catch (e: Exception) {
-        withContext(Dispatchers.Main) {
-          Toast.makeText(navController.context, "错误:${e.message}", Toast.LENGTH_SHORT).show()
+        animation = map[matchTitle]
+        AnimationService.fetchDetailSync(id) {
+          Toast.makeText(content, it.message, Toast.LENGTH_SHORT).show()
+        }?.let { detail ->
+          animationDetail = detail;
+          episodes = animationDetail?.episodes[sourceIndex]?.episodes?.toList() ?: emptyList();
+          AnimationService.fetchViewSync(episodes[episodeIndex].id) {
+            Toast.makeText(content, it.message, Toast.LENGTH_SHORT).show()
+          }?.let { viewInfo = it; playerKey = index }
         }
       }
+      isLoading = false;
+      playerKey = index;
     }
   }
   val loadLocalHistory: () -> Unit = {
     LocalStorage.getList(content, "view:history", History::class.java)?.toMutableList()
       ?.let { localHistory = it }
-    val idx = localHistory.indexOfFirst { it.subId == animation?.subId.toString() }
-    if (idx >= 0) {
-      currentPlayingEpisodeId = localHistory[idx].episodeId!!
-      episodeIndex = localHistory[idx].episodeIndex ?: 0
-      historyPosition = localHistory[idx].position ?: 0L
-      isLove = localHistory[idx].isLove
+    historyIndex = localHistory.indexOfFirst { it.id == animation?.id }
+    if (historyIndex >= 0) {
+      currentPlayingEpisodeId = localHistory[historyIndex].episodeId!!
+      episodeIndex = localHistory[historyIndex].episodeIndex ?: 0
+      historyPosition = localHistory[historyIndex].position ?: 0L
+      isLove = localHistory[historyIndex].isLove
     } else {
-      currentPlayingEpisodeId = episodes[0]
+      currentPlayingEpisodeId = episodes[0].id
       episodeIndex = 0
       currentPosition = 0L
     }
@@ -141,61 +151,16 @@ fun PlaybackPage(
       time = System.currentTimeMillis(),
     )
     val list = localHistory.toMutableList()
-    val idx = list.indexOfFirst { it.subId == animation?.id }
-    if (idx >= 0) list[idx] = history else list.add(history)
+    if (historyIndex >= 0) list[historyIndex] = history else list.add(history)
     LocalStorage.setList(content, "view:history", list)
   }
-  val onEpisodeChange: (episodeId: String, index: Int) -> Unit = { episodeId, index ->
-    isLoading = true
-    currentPlayingEpisodeId = episodeId
-    episodeIndex = index
-    capPlayer.pausePlayer(true)
-    coroutineScope.launch(Dispatchers.IO) {
-      try {
-        Log.w("PlayerPage", "onEpisodeChange: $episodeId, $index")
-        historyPosition = 0L
-        animationApi[0].htmlParser.fetchViewSync(episodeId)?.let { viewInfo = it }
-        playerKey = index
-      } catch (e: Exception) {
-        withContext(Dispatchers.Main) {
-          Toast.makeText(
-            navController.context, "错误:${e.message}", Toast.LENGTH_SHORT
-          ).show()
-        }
-      } finally {
-        isLoading = false
-      }
-    }
-  }
-  val playInfoInit: () -> Unit = {
-    if (episodes.isEmpty()) {
-      coroutineScope.launch(Dispatchers.IO) {
-        try {
-          animationApi[0].htmlParser.fetchDetailSync(id)?.let {
-            episodes =
-              it.episodes.map { source ->
-                source.episodes.map { episode -> episode.id }.toString()
-              }
-          }
-        } catch (e: Exception) {
-          Toast.makeText(
-            navController.context, "错误:${e.message}", Toast.LENGTH_SHORT
-          ).show()
-        }
-      }
-    }
-
-    onEpisodeChange(currentPlayingEpisodeId, playerKey)
-  }
-
 
   DisposableEffect(Unit) { onDispose { updateLocalHistory() } }
 
   /* 初始数据加载 */
   LaunchedEffect(Unit) {
-    fetchMetaInfo()
     loadLocalHistory()
-    playInfoInit()
+    fetchPlayerInfo(currentPlayingEpisodeId, episodeIndex)
   }
 
   Scaffold { innerPadding ->
@@ -263,10 +228,10 @@ fun PlaybackPage(
         when (page) {
           0 -> AnimeInfoPage(animation, isLove) { isLove = it }
           1 -> EpisodePage(
-            episodes = episodes, activeIndex = episodeIndex
+            episodes = episodes.map { it.id }, activeIndex = episodeIndex
           ) { newId, index ->
             if (index == episodeIndex || isLoading) return@EpisodePage
-            onEpisodeChange(newId, index)
+            fetchPlayerInfo(newId, index)
           }
         }
       }

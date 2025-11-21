@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.mikufans.R
+import com.mikufans.api.MetaService
 import com.mikufans.ui.component.MediaCard
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.GifLoader
@@ -99,28 +100,17 @@ fun IndexPage(
   val refreshCooldown = 5000L
   val animationApi = AnimationApi.SOURCES_WITH_DELAY
   val fetchSearch: (keyword: String) -> Unit = { keyword ->
-    coroutineScope.launch(Dispatchers.IO) {
-      try {
-        isLoading = true
-        animationApi[0].htmlParser.fetchSearchSync(keyword, 1, 20).let {
-          searchResult = it
-        }
-      } catch (e: Exception) {
-        // 处理错误
-        withContext(Dispatchers.Main) {
-          searchResult = emptyList()
-        }
-        Log.e("IndexPage-Search", "搜索失败", e)
-        withContext(Dispatchers.Main) {
-          Toast.makeText(
-            navController.context, "搜索失败:${e.message}", Toast.LENGTH_SHORT
-          ).show()
-        }
-      } finally {
-        withContext(Dispatchers.Main) {
-          isLoading = false
-        }
+    coroutineScope.launch {
+      isLoading = true
+      MetaService.fetchSearchSync(keyword) {
+        Log.e("IndexPage-Search", "搜索失败", it)
+        Toast.makeText(
+          navController.context, "搜索失败:${it.message}", Toast.LENGTH_SHORT
+        ).show()
+      }.let {
+        searchResult = it
       }
+      isLoading = false
     }
   }
 
@@ -345,13 +335,16 @@ fun AnimationPage(animations: List<Animation>?, navController: NavController) {
           id = it[index].id,
           coverUrl = it[index].coverUrls[0],
           titleCn = it[index].titleCn,
+          rating = it[index].rating,
+          ratingCount = it[index].ratingCount,
           title = it[index].title,
           genre = it[index].genre,
+          airDate = it[index].releaseDate,
           onTap = { id ->
             Navigation.navigateToDetail(
               navController = navController,
               id = id,
-              title = it[index].titleCn
+              title = ""
             )
           }
         )

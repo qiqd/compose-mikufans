@@ -31,6 +31,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import coil.Coil
+import coil.ImageLoader
 import com.mikufans.entity.History
 import com.mikufans.ui.nav.BottomNavigationItem
 import com.mikufans.ui.nav.Navigation
@@ -47,13 +49,31 @@ import com.mikufans.ui.page.SubscribePage
 import com.mikufans.ui.theme.MikufansTheme
 import com.mikufans.util.LocalStorage
 import com.mikufans.util.Network
-import com.mikufans.xmd.util.GlobalSharedValue
+import okhttp3.OkHttpClient
 import org.anime.api.AnimationApi
 import java.net.URLDecoder
 
 
 class MainActivity : ComponentActivity() {
   init {
+    val imageLoader = ImageLoader.Builder(context)
+      .okHttpClient {
+        OkHttpClient.Builder()
+          .addInterceptor { chain ->
+            val newRequest = chain.request().newBuilder()
+              .addHeader(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36"
+              )
+              .build()
+            chain.proceed(newRequest)
+          }
+          .build()
+      }
+      .build()
+
+    Coil.setImageLoader(imageLoader)
+
     if (AnimationApi.SOURCES_WITH_DELAY.isEmpty()) {
       Thread {
         AnimationApi.initialization()
@@ -217,8 +237,7 @@ fun MainScreen(activity: ComponentActivity) {
         var title = backStackEntry.arguments?.getString("title") ?: ""
         id = URLDecoder.decode(id, "UTF-8")
         title = URLDecoder.decode(title, "UTF-8")
-        val episodes = GlobalSharedValue.episodes
-        PlaybackPage(id, title, episodes, navController)
+        PlaybackPage(id, title, navController)
       }
       composable(route = Navigation.HISTORY) { HistoryPage(navController, baseHorizontalPadding) }
       composable(route = Navigation.ABOUT) { AboutPage(navController, baseHorizontalPadding) }

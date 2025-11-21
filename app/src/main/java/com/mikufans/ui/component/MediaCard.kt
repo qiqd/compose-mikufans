@@ -10,9 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -58,6 +56,11 @@ fun MediaCard(
   coverUrl: String? = null,
   status: String? = null,
   genre: String? = null,
+  rating: String? = null,
+  ratingCount: String? = null,
+  duration: String? = null,
+  totalEpisode: String? = null,
+  language: String? = null,
   isLove: Boolean = false,
   airDate: String? = null,
   episodeIndex: Int? = null,
@@ -116,6 +119,13 @@ fun MediaCard(
           overflow = TextOverflow.Ellipsis,
           color = Color.Gray,
           fontSize = MaterialTheme.typography.bodySmall.fontSize
+        )
+      }
+      rating?.let {
+        Text(
+          text = "$rating/$ratingCount 人评价",
+          color = MaterialTheme.colorScheme.primary,
+          fontSize = MaterialTheme.typography.labelSmall.fontSize
         )
       }
       author?.let {
@@ -181,21 +191,7 @@ fun MediaCard(
             overflow = TextOverflow.Ellipsis
           )
         }
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(5.dp)
-        ) {
-          Button(
-            onClick = { onViewBtnTab(id) },
-          ) {
-            Text(text = "观看")
-          }
-          OutlinedButton(
-            onClick = { onDetailBtnTab(id) },
-          ) {
-            Text(text = "详情")
-          }
-        }
+
       }
     }
   }
@@ -207,6 +203,8 @@ fun AnimeCardPreview() {
   MediaCard(
     id = "1",
     title = "赛马娘 芦毛灰姑娘",
+    rating = "4.5",
+    ratingCount = "1000",
     author = "author",
     titleCn = "赛马娘 芦毛灰姑娘",
     coverUrl = "https://bgm.girigirilove.com/upload/vod/20250501-1/3b36510a5360692dd83321e45d5024d0.webp",

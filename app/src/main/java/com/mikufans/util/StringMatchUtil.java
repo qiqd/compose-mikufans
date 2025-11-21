@@ -1,4 +1,4 @@
-package com.mikufans.xmd.util;
+package com.mikufans.util;
 
 import org.apache.commons.text.similarity.JaroWinklerSimilarity;
 import org.apache.commons.text.similarity.LevenshteinDistance;

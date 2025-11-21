@@ -33,9 +33,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.mikufans.api.MetaService
 import com.mikufans.ui.component.MediaCard
 import com.mikufans.ui.nav.Navigation
-import com.mikufans.xmd.util.MetaService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.anime.entity.animation.Animation
@@ -135,18 +135,20 @@ fun WeeklyPageContent(weekDay: List<Animation>?, navController: NavController) {
     ) {
       items(weekDay.size) { index ->
         val item = weekDay[index]
-        MediaCard(
-          id = "",
-          title = item.title,
-          titleCn = item.titleCn,
-          coverUrl = item.coverUrls[0],
-          status = item.status,
-          genre = item.genre,
-          onTap = { id ->
-            Navigation.navigateToDetail(
-              navController = navController, id = id, title = item.titleCn ?: ""
-            )
-          })
+        if (item.titleCn.isNotBlank()) {
+          MediaCard(
+            id = "",
+            title = item.title,
+            titleCn = item.titleCn,
+            coverUrl = item.coverUrls[0],
+            status = item.status,
+            genre = item.genre,
+            onTap = { id ->
+              Navigation.navigateToDetail(
+                navController = navController, id = id, title = item.titleCn ?: ""
+              )
+            })
+        }
       }
     }
   }
