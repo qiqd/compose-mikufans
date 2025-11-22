@@ -32,14 +32,16 @@ object Navigation {
 
   fun navigateToPlayer(
     id: String,
+    subId: String,
     title: String,
     navController: NavController,
     episodes: List<String> = emptyList()
   ) {
     val enCodeId = URLEncoder.encode(id, "UTF-8")
+    val enCodeSubId = URLEncoder.encode(subId, "UTF-8")
     val enCodeTitle = URLEncoder.encode(title, "UTF-8")
     GlobalSharedValue.episodes = episodes
-    navController.navigate("$PLAYER/$enCodeId/$enCodeTitle") {
+    navController.navigate("$PLAYER/$enCodeId/$enCodeSubId/$enCodeTitle") {
       launchSingleTop = true
       restoreState = true
     }

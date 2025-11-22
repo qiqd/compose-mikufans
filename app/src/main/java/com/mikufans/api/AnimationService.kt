@@ -11,44 +11,33 @@ import org.anime.parser.AbstractAnimationParser
 object AnimationService {
   val animationApi: AbstractAnimationParser = AnimationApi.SOURCES_WITH_DELAY[0].htmlParser
   suspend fun fetchSearchSync(
-    keyword: String,
-    exceptionHandler: (Exception) -> Unit
+    keyword: String, exceptionHandler: (Exception) -> Unit
   ): List<Animation> {
-    try {
-      return withContext(Dispatchers.IO) {
-        animationApi.fetchSearchSync(keyword, 1, 10)
+    return withContext(Dispatchers.IO) {
+      animationApi.fetchSearchSync(keyword, 1, 10) {
+        exceptionHandler(it)
       }
-    } catch (e: Exception) {
-      exceptionHandler(e)
     }
-    return emptyList()
   }
 
   suspend fun fetchDetailSync(
-    mediaId: String,
-    exceptionHandler: (Exception) -> Unit
+    mediaId: String, exceptionHandler: (Exception) -> Unit
   ): Detail<Animation>? {
-    try {
-      return withContext(Dispatchers.IO) {
-        animationApi.fetchDetailSync(mediaId)
+    return withContext(Dispatchers.IO) {
+      animationApi.fetchDetailSync(mediaId) {
+        exceptionHandler(it)
       }
-    } catch (e: Exception) {
-      exceptionHandler(e)
     }
-    return null
   }
 
   suspend fun fetchViewSync(
-    episodeId: String,
-    exceptionHandler: (Exception) -> Unit
+    episodeId: String, exceptionHandler: (Exception) -> Unit
   ): ViewInfo? {
-    try {
-      return withContext(Dispatchers.IO) {
-        animationApi.fetchViewSync(episodeId)
+    return withContext(Dispatchers.IO) {
+      animationApi.fetchViewSync(episodeId) {
+        exceptionHandler(it)
       }
-    } catch (e: Exception) {
-      exceptionHandler(e)
     }
-    return null
   }
 }
+

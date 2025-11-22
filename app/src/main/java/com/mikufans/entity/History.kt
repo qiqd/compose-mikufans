@@ -14,5 +14,6 @@ data class History(
   var episodeIndex: Int? = null,
   var position: Long? = null,
   var time: Long? = null,
-  var source: String? = null,
+  var sourceIndex: Int? = null,
+  var serviceName: String? = null,
 ) : Serializable

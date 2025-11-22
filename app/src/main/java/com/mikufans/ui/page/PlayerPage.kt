@@ -54,14 +54,14 @@ import com.mikufans.R
 import com.mikufans.api.AnimationService
 import com.mikufans.entity.History
 import com.mikufans.ui.component.CapVideoPlayer
+import com.mikufans.ui.component.EmptyCompose
 import com.mikufans.util.GifLoader
+import com.mikufans.util.GlobalSharedValue
 import com.mikufans.util.LocalStorage
-import com.mikufans.util.StringMatchUtil
 import com.mikufans.view.CapPlayerViewModel
 import kotlinx.coroutines.launch
 import org.anime.entity.animation.Animation
-import org.anime.entity.base.Detail
-import org.anime.entity.base.Episode
+import org.anime.entity.base.Source
 import org.anime.entity.base.ViewInfo
 import java.util.Locale
 
@@ -70,6 +70,7 @@ import java.util.Locale
 @Composable
 fun PlaybackPage(
   id: String,
+  subId: String,
   title: String,
   navController: NavController,
 ) {
@@ -86,60 +87,30 @@ fun PlaybackPage(
   val coroutineScope = rememberCoroutineScope()
   var isFullscreen by rememberSaveable { mutableStateOf(false) }
   val capPlayer: CapPlayerViewModel = viewModel()
-  var animation by rememberSaveable { mutableStateOf<Animation?>(null) }
   var localHistory by rememberSaveable { mutableStateOf<List<History>>(emptyList()) }
   var viewInfo by rememberSaveable { mutableStateOf<ViewInfo?>(null) }
-  var episodes by rememberSaveable { mutableStateOf<List<Episode>>(emptyList()) }
   var episodeIndex by rememberSaveable { mutableIntStateOf(0) }
   var historyIndex by rememberSaveable { mutableIntStateOf(-1) }
-  var animationDetail by rememberSaveable { mutableStateOf<Detail<Animation>?>(null) }
-  val sourceIndex by rememberSaveable { mutableIntStateOf(0) }
-  val fetchPlayerInfo: (episodeId: String, index: Int) -> Unit = { id, index ->
-    isLoading = true
-    currentPlayingEpisodeId = id
-    episodeIndex = index
-    capPlayer.pausePlayer(true)
-    coroutineScope.launch {
-      AnimationService.fetchSearchSync(title) {
-        Toast.makeText(content, it.message, Toast.LENGTH_SHORT).show()
-      }.takeIf { it.isNotEmpty() }?.let { animations ->
-        val map = animations.associateBy { a -> a.titleCn }
-        val matchTitle =
-          StringMatchUtil.findBestMatchWithJaroWinkler(animations.map { it.titleCn }, title)
-        animation = map[matchTitle]
-        AnimationService.fetchDetailSync(id) {
-          Toast.makeText(content, it.message, Toast.LENGTH_SHORT).show()
-        }?.let { detail ->
-          animationDetail = detail;
-          episodes = animationDetail?.episodes[sourceIndex]?.episodes?.toList() ?: emptyList();
-          AnimationService.fetchViewSync(episodes[episodeIndex].id) {
-            Toast.makeText(content, it.message, Toast.LENGTH_SHORT).show()
-          }?.let { viewInfo = it; playerKey = index }
-        }
-      }
-      isLoading = false;
-      playerKey = index;
-    }
-  }
+  var sourceIndex by rememberSaveable { mutableIntStateOf(0) }
+  var errorMsg by rememberSaveable { mutableStateOf("") }
+  val animationDetail = GlobalSharedValue.animationDetail
   val loadLocalHistory: () -> Unit = {
     LocalStorage.getList(content, "view:history", History::class.java)?.toMutableList()
       ?.let { localHistory = it }
-    historyIndex = localHistory.indexOfFirst { it.id == animation?.id }
+    historyIndex = localHistory.indexOfFirst { it.subId == subId }
     if (historyIndex >= 0) {
       currentPlayingEpisodeId = localHistory[historyIndex].episodeId!!
       episodeIndex = localHistory[historyIndex].episodeIndex ?: 0
       historyPosition = localHistory[historyIndex].position ?: 0L
       isLove = localHistory[historyIndex].isLove
-    } else {
-      currentPlayingEpisodeId = episodes[0].id
-      episodeIndex = 0
-      currentPosition = 0L
+      sourceIndex = localHistory[historyIndex].sourceIndex ?: 0
     }
   }
   val updateLocalHistory: () -> Unit = {
+    val animation = animationDetail?.media
     val history = History(
       id = id,
-      subId = animation?.subId.toString(),
+      subId = subId,
       name = animation?.title,
       nameCn = animation?.titleCn,
       cover = animation?.coverUrls[0],
@@ -148,19 +119,28 @@ fun PlaybackPage(
       videoUrl = viewInfo?.urls[0],
       position = currentPosition - 5000,
       isLove = isLove,
+      sourceIndex = sourceIndex,
       time = System.currentTimeMillis(),
     )
     val list = localHistory.toMutableList()
     if (historyIndex >= 0) list[historyIndex] = history else list.add(history)
     LocalStorage.setList(content, "view:history", list)
   }
-
+  val fetchPlayerInfo: () -> Unit = {
+    isLoading = true
+    coroutineScope.launch {
+      AnimationService.fetchViewSync(animationDetail!!.episodes[sourceIndex].episodes[episodeIndex].id) {
+        errorMsg = it.message.toString()
+        coroutineScope.launch { Toast.makeText(content, it.message, Toast.LENGTH_SHORT).show() }
+      }?.let { info -> viewInfo = info; playerKey = episodeIndex; isLoading = false }
+    }
+  }
   DisposableEffect(Unit) { onDispose { updateLocalHistory() } }
 
   /* 初始数据加载 */
   LaunchedEffect(Unit) {
     loadLocalHistory()
-    fetchPlayerInfo(currentPlayingEpisodeId, episodeIndex)
+    fetchPlayerInfo()
   }
 
   Scaffold { innerPadding ->
@@ -171,7 +151,7 @@ fun PlaybackPage(
       Row(
         modifier = Modifier.fillMaxWidth()
       ) {
-        if (viewInfo == null || isLoading) {
+        if (isLoading) {
           Box(
             modifier = Modifier
               .fillMaxWidth()
@@ -180,7 +160,17 @@ fun PlaybackPage(
           ) {
             CircularProgressIndicator()
           }
+        } else if (errorMsg.isNotEmpty()) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .aspectRatio(16f / 9),
+            contentAlignment = Alignment.Center
+          ) {
+            Text(text = errorMsg)
+          }
         } else {
+          val animation = animationDetail?.media
           CapVideoPlayer(
             key = playerKey.toString(),
             videoUrl = viewInfo?.urls?.getOrNull(0),
@@ -203,8 +193,11 @@ fun PlaybackPage(
               isFullscreen = it
             },
             onPlayerError = {
-              Toast.makeText(content, "播放出错,试着换一条线路: ${it.message}", Toast.LENGTH_SHORT)
-                .show()
+              Toast.makeText(
+                content,
+                "播放出错,试着换一条线路: ${it.message}",
+                Toast.LENGTH_SHORT
+              ).show()
             }
           )
         }
@@ -226,13 +219,20 @@ fun PlaybackPage(
         state = pagerState, modifier = Modifier.fillMaxSize()
       ) { page ->
         when (page) {
-          0 -> AnimeInfoPage(animation, isLove) { isLove = it }
-          1 -> EpisodePage(
-            episodes = episodes.map { it.id }, activeIndex = episodeIndex
-          ) { newId, index ->
-            if (index == episodeIndex || isLoading) return@EpisodePage
-            fetchPlayerInfo(newId, index)
-          }
+          0 -> AnimeInfoPage(animationDetail?.media, errorMsg, isLove) { isLove = it }
+          1 -> SourcePage(
+            errorMsg = errorMsg,
+            activeIndex = episodeIndex,
+            sources = animationDetail?.episodes,
+            onSourceChange = { s: Int ->
+              sourceIndex = s
+            },
+            onEpisodeChange = { newId, index ->
+              if (index == episodeIndex || isLoading) return@SourcePage
+              episodeIndex = index
+              fetchPlayerInfo()
+            }
+          )
         }
       }
     }
@@ -243,7 +243,7 @@ fun PlaybackPage(
 /* ====================== 简介页 ====================== */
 @Composable
 fun AnimeInfoPage(
-  animation: Animation?, isLove: Boolean = false, loveHandle: (Boolean) -> Unit
+  animation: Animation?, errorMsg: String, isLove: Boolean = false, loveHandle: (Boolean) -> Unit
 ) {
   animation?.let { anime ->
     LazyColumn(
@@ -346,17 +346,6 @@ fun AnimeInfoPage(
                 modifier = Modifier.padding(top = 8.dp)
               )
             }
-//            anime.infobox?.let { infoList ->
-//              infoList.forEach { info ->
-//                info.key?.let { key ->
-//                  Text(
-//                    text = "$key: ${info.value ?: "无"}",
-//                    style = MaterialTheme.typography.bodyMedium,
-//                    modifier = Modifier.padding(top = 4.dp)
-//                  )
-//                }
-//              }
-//            }
           }
         }
       }
@@ -364,15 +353,48 @@ fun AnimeInfoPage(
   } ?: run {
     Box(
       modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
-    ) { Text("加载中...") }
+    ) { Text(errorMsg.ifEmpty { "加载中..." }) }
   }
 }
 
 /* ====================== 选集页 ====================== */
 @Composable
-fun EpisodePage(
-  episodes: List<String>, activeIndex: Int = 0, onEpisodeChange: (String, Int) -> Unit
+fun SourcePage(
+  errorMsg: String,
+  activeIndex: Int = 0,
+  sources: List<Source>?,
+  onSourceChange: (Int) -> Unit,
+  onEpisodeChange: (String, Int) -> Unit
 ) {
+  val sourcePagerState = rememberPagerState(pageCount = { sources?.size ?: 0 })
+  val coroutineScope = rememberCoroutineScope()
+  sources?.let {
+    Column(Modifier.fillMaxWidth()) {
+      PrimaryTabRow(selectedTabIndex = sourcePagerState.currentPage) {
+        sources.forEachIndexed { index, _ ->
+          Tab(
+            text = { Text("线路${index + 1}") },
+            selected = sourcePagerState.currentPage == index,
+            onClick = {
+              onSourceChange(index)
+              coroutineScope.launch { sourcePagerState.animateScrollToPage(index) }
+            }
+          )
+        }
+      }
+      HorizontalPager(state = sourcePagerState, userScrollEnabled = false) { index ->
+        EpisodePage(sources[index], activeIndex, onEpisodeChange)
+      }
+    }
+  } ?: run {
+    EmptyCompose(errorMsg.ifEmpty { "暂无线路" })
+  }
+}
+
+
+@Composable
+fun EpisodePage(source: Source, activeIndex: Int = 0, onEpisodeChange: (String, Int) -> Unit) {
+  val episodes = source.episodes
   if (episodes.isNotEmpty()) {
     episodes.let { episodeList ->
       LazyVerticalGrid(
@@ -393,7 +415,7 @@ fun EpisodePage(
           } else {
             OutlinedButton(
               onClick = {
-                onEpisodeChange(episode, index)
+                onEpisodeChange(episode.id, index)
               }, modifier = Modifier.fillMaxWidth()
             ) { Text(text = "${index + 1}", maxLines = 1) }
           }

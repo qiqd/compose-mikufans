@@ -123,7 +123,7 @@ fun MediaCard(
       }
       rating?.let {
         Text(
-          text = "$rating/$ratingCount 人评价",
+          text = "$rating 分/$ratingCount 人评价",
           color = MaterialTheme.colorScheme.primary,
           fontSize = MaterialTheme.typography.labelSmall.fontSize
         )

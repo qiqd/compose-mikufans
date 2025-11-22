@@ -67,19 +67,19 @@ fun SubscribePage(
           modifier = Modifier.fillMaxSize()
         ) {
           items(loveList.size) { index ->
-            MediaCard(
-              id = loveList[index].id!!,
-              title = loveList[index].name,
-              titleCn = loveList[index].nameCn,
-              coverUrl = loveList[index].cover,
-              onTap = { id ->
-                Navigation.navigateToPlayer(
-                  id = id,
-                  navController = navController,
-                  title = loveList[index].name ?: loveList[index].nameCn ?: "",
-                )
-              }
-            )
+            if (!loveList[index].nameCn.isNullOrBlank()) {
+              MediaCard(
+                id = loveList[index].id!!,
+                title = loveList[index].name,
+                titleCn = loveList[index].nameCn,
+                coverUrl = loveList[index].cover,
+                onTap = { _ ->
+                  Navigation.navigateToDetail(
+                    navController = navController, id = "", title = loveList[index].nameCn ?: ""
+                  )
+                }
+              )
+            }
           }
         }
       }

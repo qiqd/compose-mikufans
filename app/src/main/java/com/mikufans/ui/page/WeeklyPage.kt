@@ -143,9 +143,9 @@ fun WeeklyPageContent(weekDay: List<Animation>?, navController: NavController) {
             coverUrl = item.coverUrls[0],
             status = item.status,
             genre = item.genre,
-            onTap = { id ->
+            onTap = { _ ->
               Navigation.navigateToDetail(
-                navController = navController, id = id, title = item.titleCn ?: ""
+                navController = navController, id = "", title = item.titleCn ?: ""
               )
             })
         }

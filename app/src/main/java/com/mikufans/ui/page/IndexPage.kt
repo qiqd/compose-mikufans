@@ -64,7 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.mikufans.R
-import com.mikufans.api.MetaService
+import com.mikufans.api.AnimationService
 import com.mikufans.ui.component.MediaCard
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.GifLoader
@@ -96,20 +96,20 @@ fun IndexPage(
   val tabs = arrayOf("番剧", "漫画", "轻小说")
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
-  var lastRefreshTime by rememberSaveable() { mutableLongStateOf(0L) }
+  var lastRefreshTime by rememberSaveable { mutableLongStateOf(0L) }
   val refreshCooldown = 5000L
   val animationApi = AnimationApi.SOURCES_WITH_DELAY
   val fetchSearch: (keyword: String) -> Unit = { keyword ->
     coroutineScope.launch {
       isLoading = true
-      MetaService.fetchSearchSync(keyword) {
+      AnimationService.fetchSearchSync(keyword) {
         Log.e("IndexPage-Search", "搜索失败", it)
-        Toast.makeText(
-          navController.context, "搜索失败:${it.message}", Toast.LENGTH_SHORT
-        ).show()
-      }.let {
-        searchResult = it
-      }
+        coroutineScope.launch {
+          Toast.makeText(
+            navController.context, it.message, Toast.LENGTH_SHORT
+          ).show()
+        }
+      }.takeIf { it.isNotEmpty() }?.let { searchResult = it }
       isLoading = false
     }
   }
@@ -334,17 +334,17 @@ fun AnimationPage(animations: List<Animation>?, navController: NavController) {
         MediaCard(
           id = it[index].id,
           coverUrl = it[index].coverUrls[0],
+          title = it[index].title,
           titleCn = it[index].titleCn,
           rating = it[index].rating,
           ratingCount = it[index].ratingCount,
-          title = it[index].title,
           genre = it[index].genre,
           airDate = it[index].releaseDate,
           onTap = { id ->
             Navigation.navigateToDetail(
-              navController = navController,
               id = id,
-              title = ""
+              title = it[index].titleCn,
+              navController = navController
             )
           }
         )

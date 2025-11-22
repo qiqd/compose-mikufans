@@ -81,9 +81,9 @@ fun HistoryPage(navController: NavController, baseHorizontalPadding: Dp) {
               episodeIndex = historyList[index].episodeIndex,
               lastViewAt = historyList[index].time,
               onTap = {
-                Navigation.navigateToPlayer(
+                Navigation.navigateToDetail(
                   navController = navController,
-                  id = historyList[index].id!!,
+                  id = "",
                   title = historyList[index].nameCn ?: historyList[index].name ?: "",
                 )
               }

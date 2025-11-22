@@ -56,24 +56,6 @@ import java.net.URLDecoder
 
 class MainActivity : ComponentActivity() {
   init {
-    val imageLoader = ImageLoader.Builder(context)
-      .okHttpClient {
-        OkHttpClient.Builder()
-          .addInterceptor { chain ->
-            val newRequest = chain.request().newBuilder()
-              .addHeader(
-                "User-Agent",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36"
-              )
-              .build()
-            chain.proceed(newRequest)
-          }
-          .build()
-      }
-      .build()
-
-    Coil.setImageLoader(imageLoader)
-
     if (AnimationApi.SOURCES_WITH_DELAY.isEmpty()) {
       Thread {
         AnimationApi.initialization()
@@ -83,6 +65,17 @@ class MainActivity : ComponentActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    val imageLoader = ImageLoader.Builder(this@MainActivity).okHttpClient {
+      OkHttpClient.Builder().addInterceptor { chain ->
+        val newRequest = chain.request().newBuilder().addHeader(
+          "User-Agent",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36"
+        ).build()
+        chain.proceed(newRequest)
+      }.build()
+    }.build()
+
+    Coil.setImageLoader(imageLoader)
     enableEdgeToEdge()
     setContent {
       MikufansTheme {
@@ -232,12 +225,14 @@ fun MainScreen(activity: ComponentActivity) {
           baseHorizontalPadding = baseHorizontalPadding
         )
       }
-      composable(Navigation.PLAYER + "/{id}/{title}") { backStackEntry ->
+      composable(Navigation.PLAYER + "/{id}/{subId}/{title}") { backStackEntry ->
         var id = backStackEntry.arguments?.getString("id") ?: "0"
         var title = backStackEntry.arguments?.getString("title") ?: ""
         id = URLDecoder.decode(id, "UTF-8")
+        var subId = backStackEntry.arguments?.getString("subId") ?: ""
+        subId = URLDecoder.decode(subId, "UTF-8")
         title = URLDecoder.decode(title, "UTF-8")
-        PlaybackPage(id, title, navController)
+        PlaybackPage(id, subId, title, navController)
       }
       composable(route = Navigation.HISTORY) { HistoryPage(navController, baseHorizontalPadding) }
       composable(route = Navigation.ABOUT) { AboutPage(navController, baseHorizontalPadding) }
