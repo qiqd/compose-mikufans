@@ -99,6 +99,7 @@ fun IndexPage(
   var lastRefreshTime by rememberSaveable { mutableLongStateOf(0L) }
   val refreshCooldown = 5000L
   val animationApi = AnimationApi.SOURCES_WITH_DELAY
+  var isInit by rememberSaveable { mutableStateOf(false) }
   val fetchSearch: (keyword: String) -> Unit = { keyword ->
     coroutineScope.launch {
       isLoading = true
@@ -119,6 +120,7 @@ fun IndexPage(
     if (AnimationApi.SOURCES_WITH_DELAY.isNotEmpty()) {
       return@LaunchedEffect
     }
+    isInit = true
     Toast.makeText(navController.context, "初始化资源中", Toast.LENGTH_SHORT).show()
     coroutineScope.launch(Dispatchers.IO) {
       try {
@@ -149,6 +151,8 @@ fun IndexPage(
             navController.context, e.message, Toast.LENGTH_SHORT
           ).show()
         }
+      } finally {
+        isInit = false
       }
     }
   }
@@ -156,11 +160,13 @@ fun IndexPage(
     modifier = Modifier.padding(horizontal = baseHorizontalPadding),
     topBar = {
       TopAppBar(title = { Text("首页") }, actions = {
-        IconButton(onClick = {
-          Log.i("IndexPage-TopBar", "点击切换资源")
-          coroutineScope.launch { sheetState.show() }
-          showBottomSheet = true
-        }) {
+        IconButton(
+          enabled = isInit.not() && isRefreshing.not(),
+          onClick = {
+            Log.i("IndexPage-TopBar", "点击切换资源")
+            coroutineScope.launch { sheetState.show() }
+            showBottomSheet = true
+          }) {
           Icon(
             imageVector = Icons.Default.Source, contentDescription = "切换资源"
           )
@@ -333,6 +339,7 @@ fun AnimationPage(animations: List<Animation>?, navController: NavController) {
       items(it.size) { index ->
         MediaCard(
           id = it[index].id,
+          status = it[index].status,
           coverUrl = it[index].coverUrls[0],
           title = it[index].title,
           titleCn = it[index].titleCn,

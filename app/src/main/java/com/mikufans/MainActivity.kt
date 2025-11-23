@@ -50,18 +50,10 @@ import com.mikufans.ui.theme.MikufansTheme
 import com.mikufans.util.LocalStorage
 import com.mikufans.util.Network
 import okhttp3.OkHttpClient
-import org.anime.api.AnimationApi
 import java.net.URLDecoder
 
 
 class MainActivity : ComponentActivity() {
-  init {
-    if (AnimationApi.SOURCES_WITH_DELAY.isEmpty()) {
-      Thread {
-        AnimationApi.initialization()
-      }.start()
-    }
-  }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -232,7 +224,7 @@ fun MainScreen(activity: ComponentActivity) {
         var subId = backStackEntry.arguments?.getString("subId") ?: ""
         subId = URLDecoder.decode(subId, "UTF-8")
         title = URLDecoder.decode(title, "UTF-8")
-        PlaybackPage(id, subId, title, navController)
+        PlaybackPage(id, subId, title, navController, baseHorizontalPadding)
       }
       composable(route = Navigation.HISTORY) { HistoryPage(navController, baseHorizontalPadding) }
       composable(route = Navigation.ABOUT) { AboutPage(navController, baseHorizontalPadding) }

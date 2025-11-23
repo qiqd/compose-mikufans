@@ -15,6 +15,9 @@ object Navigation {
   const val TYPE_ANIMATION = "animation"
   const val TYPE_COMIC = "comic"
   const val TYPE_NOVEL = "novel"
+  fun navigateToIndex(navController: NavController) {
+    navController.navigate(BottomNavigationItem.Index.route)
+  }
 
   fun navigateToDetail(
     id: String,
@@ -40,7 +43,7 @@ object Navigation {
     val enCodeId = URLEncoder.encode(id, "UTF-8")
     val enCodeSubId = URLEncoder.encode(subId, "UTF-8")
     val enCodeTitle = URLEncoder.encode(title, "UTF-8")
-    GlobalSharedValue.episodes = episodes
+    GlobalSharedValue.episodes = episodes.toMutableList()
     navController.navigate("$PLAYER/$enCodeId/$enCodeSubId/$enCodeTitle") {
       launchSingleTop = true
       restoreState = true

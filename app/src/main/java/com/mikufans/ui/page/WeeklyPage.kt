@@ -140,6 +140,7 @@ fun WeeklyPageContent(weekDay: List<Animation>?, navController: NavController) {
             id = "",
             title = item.title,
             titleCn = item.titleCn,
+            airDate = item.ariDate,
             coverUrl = item.coverUrls[0],
             status = item.status,
             genre = item.genre,

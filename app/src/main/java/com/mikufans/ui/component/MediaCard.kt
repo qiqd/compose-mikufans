@@ -102,28 +102,24 @@ fun MediaCard(
         .padding(horizontal = 3.dp),
       verticalArrangement = Arrangement.Top
     ) {
-      titleCn?.let {
-        Text(
-          text = titleCn,
-          textAlign = TextAlign.Start,
-          maxLines = 2,
-          overflow = TextOverflow.Ellipsis,
-          fontSize = MaterialTheme.typography.bodyMedium.fontSize
-        )
-      }
-      title?.let {
-        Text(
-          text = title,
-          textAlign = TextAlign.Start,
-          maxLines = 2,
-          overflow = TextOverflow.Ellipsis,
-          color = Color.Gray,
-          fontSize = MaterialTheme.typography.bodySmall.fontSize
-        )
-      }
+      Text(
+        text = titleCn ?: "暂无中文标题",
+        textAlign = TextAlign.Start,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        fontSize = MaterialTheme.typography.bodyMedium.fontSize
+      )
+      Text(
+        text = title ?: "暂无其他标题",
+        textAlign = TextAlign.Start,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        color = Color.Gray,
+        fontSize = MaterialTheme.typography.bodySmall.fontSize
+      )
       rating?.let {
         Text(
-          text = "$rating 分/$ratingCount 人评价",
+          text = "$rating 分/$ratingCount 人评分",
           color = MaterialTheme.colorScheme.primary,
           fontSize = MaterialTheme.typography.labelSmall.fontSize
         )

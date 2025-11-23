@@ -45,6 +45,40 @@ object LocalStorage {
     }
     file.delete()
   }
+
+  /**
+   * 计算 /cache 目录总大小（字节）
+   */
+  fun getCacheSize(context: Context): Long {
+    return getFolderSize(context.cacheDir)
+  }
+
+  /**
+   * 递归统计目录大小
+   */
+  private fun getFolderSize(dir: File?): Long {
+    if (dir == null || !dir.exists()) return 0L
+    var size = 0L
+    dir.listFiles()?.forEach { file ->
+      size += if (file.isFile) file.length() else getFolderSize(file)
+    }
+    return size
+  }
+
+  /**
+   * 格式化字节为 MB/GB 等
+   */
+  fun formatSize(bytes: Long): String {
+    val kb = 1024.0
+    val mb = kb * 1024
+    val gb = mb * 1024
+    return when {
+      bytes < kb -> "${bytes} B"
+      bytes < mb -> String.format("%.2f KB", bytes / kb)
+      bytes < gb -> String.format("%.2f MB", bytes / mb)
+      else -> String.format("%.2f GB", bytes / gb)
+    }
+  }
 }
 
 

@@ -16,7 +16,6 @@ object MetaService {
   suspend fun fetchSearchSync(
     keyword: String, exceptionHandler: (Exception) -> Unit
   ): List<Animation> {
-
     return withContext(Dispatchers.IO) {
       douban.fetchSearchSync(keyword, 1, 10) {
         Log.e("MetaService", "fetchSearchSync: $it")

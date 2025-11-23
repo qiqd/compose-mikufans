@@ -14,10 +14,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -78,7 +77,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -112,6 +110,7 @@ import java.time.LocalDateTime
 @Composable
 fun CapVideoPlayer(
   modifier: Modifier = Modifier,
+  isLoading: Boolean = false,
   videoUrl: String? = null,
   title: String,
   key: String,
@@ -120,7 +119,7 @@ fun CapVideoPlayer(
   showHeader: Boolean = true,
   showNextButton: Boolean = true,
   showPreviousButton: Boolean = true,
-  navController: NavController? = null,
+  navController: NavController,
   innerPadding: PaddingValues = PaddingValues(16.dp),
   playList: List<String> = listOf(),
   onNextTab: () -> Unit = {},
@@ -169,11 +168,7 @@ fun CapVideoPlayer(
   LaunchedEffect(key) {
     if (capPlayerViewModel.key == key) return@LaunchedEffect
     val newUrl = videoUrl ?: playList.getOrNull(episodeIndex) ?: return@LaunchedEffect
-//    if (initPosition == 0L) {
-//      exoPlayer.setMediaItem(MediaItem.fromUri(newUrl))
-//    } else {
-//      exoPlayer.seekTo(initPosition)
-//    }
+
     exoPlayer.setMediaItem(MediaItem.fromUri(newUrl))
     exoPlayer.seekTo(initPosition)
     exoPlayer.prepare()
@@ -242,7 +237,9 @@ fun CapVideoPlayer(
   }
   Box(
     modifier = if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-      modifier.fillMaxSize()
+      modifier
+        .fillMaxSize()
+        .background(Color.Black)
     } else {
       modifier
         .fillMaxWidth()
@@ -251,25 +248,26 @@ fun CapVideoPlayer(
       Modifier
         .background(Color.Black)
         .pointerInput(Unit) {
-          // 只监听“按下”事件，不消费，仅用于重置计时器
-          awaitPointerEventScope {
-            while (true) {
-              val event = awaitPointerEvent(PointerEventPass.Initial)
-              // 只要检测到任何手指按下就重置
-              if (event.changes.any { it.pressed }) {
-                resetControllerHideTimer()
+          detectTapGestures(
+            // 双击暂停/播放
+            onDoubleTap = {
+              Log.e("CapVideoPlayer", "onDoubleTap: $isPlaying")
+              capPlayerViewModel.pausePlayer(!isPlaying)
+            },
+            // 按下即重置 5 s 计时器
+            onPress = {
+              resetControllerHideTimer()
+              awaitRelease()
+              // 必须消费事件，否则 Up 事件收不到
+            },
+            //单击显示 / 隐藏控制器
+            onTap = {
+              if (showEpisodeList) {
+                showEpisodeList = false
+                return@detectTapGestures
               }
-              // 不调用 change.consume()，事件继续下发给子级
-            }
-          }
-        }
-        .clickable(
-          indication = null, interactionSource = remember { MutableInteractionSource() }) {
-          if (showEpisodeList) {
-            showEpisodeList = false
-            return@clickable
-          }
-          showVideoController = !showVideoController
+              showVideoController = !showVideoController
+            })
         })
   ) {
 
@@ -285,18 +283,25 @@ fun CapVideoPlayer(
         }
       }, update = { playerView ->
         playerView.setResizeMode(resizeMode) // 更新时也应用resizeMode
-      }, modifier = Modifier.fillMaxSize()
+      }, modifier = Modifier.fillMaxSize().also {
+        if (isLandscape) {
+          Modifier.background(Color.Black)
+        }
+      }
     )
     //自定义控制区域
     Column(
       modifier = Modifier.padding(
         if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) PaddingValues(
-          vertical = 15.dp,
-          horizontal = 30.dp
+          vertical = 15.dp, horizontal = 30.dp
         ) else PaddingValues(
           0.dp
         )
-      )
+      ).also {
+        if (isLandscape) {
+          Modifier.background(Color.Black)
+        }
+      }
     ) {
       //头部：返回按钮+标题
       AnimatedVisibility(visible = showVideoController && showHeader && !controllerLocked) {
@@ -314,7 +319,7 @@ fun CapVideoPlayer(
                 isLandscape = false
                 Orientation.forceOrientation(current, false)
               } else {
-                navController?.popBackStack()
+                navController.popBackStack()
               }
             }) {
               Icon(
@@ -379,15 +384,14 @@ fun CapVideoPlayer(
                   WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE -> {
                     // 0~255 → 0~1
                     Settings.System.getInt(
-                      current.contentResolver,
-                      Settings.System.SCREEN_BRIGHTNESS
+                      current.contentResolver, Settings.System.SCREEN_BRIGHTNESS
                     ) / 255f
                   }
 
                   else -> attrs.screenBrightness
-                }.coerceIn(0.05f, 1f)   // 保底限幅
+                }.coerceIn(0.01f, 1f)   // 保底限幅
                 val delta = dragAmount / 1000f
-                val new = (old - delta).coerceIn(0.05f, 1.0f)
+                val new = (old - delta).coerceIn(0.01f, 1.0f)
                 Log.d("Gesture-brightness", "old=$old new=$new")
                 attrs.screenBrightness = new
                 window.attributes = attrs
@@ -400,10 +404,8 @@ fun CapVideoPlayer(
             visible = showVideoController && isLandscape, enter = fadeIn(), exit = fadeOut()
           ) {
             IconButton(
-              modifier = Modifier
-                .clip(CircleShape),
-              onClick = { controllerLocked = !controllerLocked }
-            ) {
+              modifier = Modifier.clip(CircleShape),
+              onClick = { controllerLocked = !controllerLocked }) {
               Icon(
                 imageVector = if (controllerLocked) Icons.Filled.Lock else Icons.Filled.LockOpen,
                 contentDescription = "锁定/解锁控制器"
@@ -435,15 +437,11 @@ fun CapVideoPlayer(
 
                 if (dragAmount < 0) {
                   audioManager.adjustStreamVolume(
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.ADJUST_RAISE,
-                    0
+                    AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, 0
                   )
                 } else {
                   audioManager.adjustStreamVolume(
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.ADJUST_LOWER,
-                    0
+                    AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, 0
                   )
                 }
                 val maxVolume =
@@ -619,16 +617,13 @@ fun CapVideoPlayer(
                       AspectRatioFrameLayout.RESIZE_MODE_FILL -> "填充"
                       AspectRatioFrameLayout.RESIZE_MODE_FIT -> "适应"
                       else -> ""
-                    },
-                    fontSize = MaterialTheme.typography.titleSmall.fontSize
+                    }, fontSize = MaterialTheme.typography.titleSmall.fontSize
                   )
-                }
-              ) {
+                }) {
                 IconButton(
                   onClick = {
                     isAspectMenuOpen = !isAspectMenuOpen
-                  }, modifier = Modifier
-                    .size(40.dp)
+                  }, modifier = Modifier.size(40.dp)
                 ) {
                   Icon(Icons.Default.ImageAspectRatio, contentDescription = "Change aspect ratio")
                 }
@@ -667,12 +662,9 @@ fun CapVideoPlayer(
                     text = "${playbackSpeed}x",
                     fontSize = MaterialTheme.typography.titleSmall.fontSize
                   )
-                }
-              ) {
+                }) {
                 IconButton(
-                  onClick = { isSpeedMenuOpen = !isSpeedMenuOpen },
-                  modifier = Modifier
-                    .size(40.dp)
+                  onClick = { isSpeedMenuOpen = !isSpeedMenuOpen }, modifier = Modifier.size(40.dp)
                 ) {
                   Icon(Icons.Default.Speed, contentDescription = "Change speed")
                 }

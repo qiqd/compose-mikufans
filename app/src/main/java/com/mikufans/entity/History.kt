@@ -13,6 +13,9 @@ data class History(
   var episodeId: String? = null,
   var episodeIndex: Int? = null,
   var position: Long? = null,
+  /**
+   * 播放时间，单位毫秒
+   */
   var time: Long? = null,
   var sourceIndex: Int? = null,
   var serviceName: String? = null,

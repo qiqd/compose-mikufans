@@ -1,9 +1,6 @@
 package com.mikufans.ui.page
 
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,10 +62,12 @@ import coil.compose.AsyncImage
 import com.mikufans.R
 import com.mikufans.api.AnimationService
 import com.mikufans.api.MetaService
+import com.mikufans.entity.History
 import com.mikufans.ui.component.EmptyCompose
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.GifLoader
 import com.mikufans.util.GlobalSharedValue
+import com.mikufans.util.LocalStorage
 import com.mikufans.util.StringMatchUtil
 import kotlinx.coroutines.launch
 import org.anime.entity.animation.Animation
@@ -81,24 +80,84 @@ import org.anime.parser.HtmlParser
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailPage(
-  id: String,
-  title: String,
-  type: String,
-  navController: NavController,
-  baseHorizontalPadding: Dp
+  id: String, title: String, type: String, navController: NavController, baseHorizontalPadding: Dp
 ) {
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
   val tabs = arrayOf("简介", "导演", "演员", "制片", "编剧", "动画")
   var detail by rememberSaveable { mutableStateOf<Detail<out Media>?>(null) }
-  var animationDetail by rememberSaveable { mutableStateOf<Detail<Animation>?>(null) }
+  var metadata by rememberSaveable { mutableStateOf<Detail<Animation>?>(null) }
   var staffInfo by rememberSaveable { mutableStateOf<Staff?>(null) }
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   var targetApis by rememberSaveable { mutableStateOf<List<SourceWithDelay<out HtmlParser>>?>(null) }
-  var subId by rememberSaveable { mutableStateOf(id) }
+  var subId by rememberSaveable { mutableStateOf<String?>(null) }
   var id by rememberSaveable { mutableStateOf(id) }
-  var love by rememberSaveable() { mutableStateOf(false) }
+  var love by rememberSaveable { mutableStateOf(false) }
+  var localHistory by rememberSaveable { mutableStateOf<List<History>>(mutableListOf()) }
+  var isEpisodeLoading by rememberSaveable { mutableStateOf(false) }
+  var errMsg by rememberSaveable { mutableStateOf<String?>(null) }
+  val loadLocalHistory: () -> Unit = {
+    LocalStorage.getList(context, "view:history", History::class.java)?.toMutableList()
+      ?.let { localHistory = it }
+    localHistory.indexOfFirst { it.subId == subId }.takeIf { it >= 0 }?.let {
+      love = true
+    }
+  }
+  val updateHistory: () -> Unit = {
+    localHistory.indexOfFirst { it.subId == subId && it.isLove }.takeIf { it >= 0 }?.let { index ->
+      localHistory[index].apply {
+        isLove = love
+      }
+      subId = localHistory[index].subId
+    }
+    localHistory.indexOfFirst { it.subId == subId }.takeIf { it < 0 }?.let {
+      val animation = metadata?.media
+      val history = History(
+        id = id,
+        subId = subId,
+        name = animation?.title,
+        nameCn = animation?.titleCn,
+        cover = animation?.coverUrls[0],
+        episodeIndex = 0,
+        position = 0L,
+        isLove = love,
+        sourceIndex = 0,
+        time = System.currentTimeMillis(),
+      )
+      localHistory = localHistory.toMutableList().apply { add(history) }
+    }
+    LocalStorage.setList(context, "view:history", localHistory)
+  }
+  val loadMetadata: () -> Unit = {
+    scope.launch {
+      if (subId.isNullOrBlank()) {
+        MetaService.fetchSearchSync(title) {
+          scope.launch {
+            Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show(); errMsg = it.message
+          }
+        }.takeIf { it.isNotEmpty() }?.let { subId = it.first().subId }
+      }
+      subId?.let {
+        MetaService.fetchDetailSync(subId!!) {
+          scope.launch {
+            Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show(); errMsg = it.message
+          }
+        }?.let { metadata = it }
+        MetaService.fetchStaffSync(subId!!) {
+          scope.launch {
+            Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show(); errMsg = it.message
+          }
+        }?.let { staffInfo = it }
+        localHistory.indexOfFirst { it.subId == subId }.takeIf { it >= 0 }?.let {
+          love = true
+        }
+        loadLocalHistory()
+      }
+
+    }
+  }
   val fetchDetail: () -> Unit = {
+    isEpisodeLoading = true
     scope.launch {
       if (id.isBlank()) {
         AnimationService.fetchSearchSync(title) {
@@ -112,26 +171,23 @@ fun DetailPage(
       }
       AnimationService.fetchDetailSync(id) {
         scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
-      }?.let { detail ->
-        GlobalSharedValue.animationDetail = detail
+      }?.let { item ->
+        detail = item
+        GlobalSharedValue.animationDetail = item
+        GlobalSharedValue.animationDetail?.media = metadata?.media
       }
-      MetaService.fetchSearchSync(title) {
-        scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
-      }.takeIf { it.isNotEmpty() }?.let { subId = it.first().id }
-      MetaService.fetchDetailSync(subId) {
-        scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
-      }?.let { animationDetail = it }
-      MetaService.fetchStaffSync(subId) {
-        scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
-      }?.let { staffInfo = it }
+      isEpisodeLoading = false
     }
   }
 
   LaunchedEffect(Unit) {
-    if (detail != null || animationDetail != null) return@LaunchedEffect
+    loadMetadata()
+    if (metadata != null) return@LaunchedEffect
     fetchDetail()
   }
-
+  LaunchedEffect(metadata) {
+    GlobalSharedValue.animationDetail?.media = metadata?.media
+  }
 
   Scaffold(
     modifier = Modifier.padding(horizontal = baseHorizontalPadding), topBar = {
@@ -142,23 +198,22 @@ fun DetailPage(
           )
         }
       })
-    },
-    floatingActionButton = {
+    }, floatingActionButton = {
       Column {
-        AnimatedVisibility(visible = animationDetail != null, enter = fadeIn(), exit = fadeOut()) {
-          OutlinedButton(onClick = {
-            Navigation.navigateToPlayer(id, subId, animationDetail!!.media.titleCn, navController)
+        OutlinedButton(
+          enabled = metadata != null, onClick = {
+            Navigation.navigateToPlayer(id, subId!!, "", navController)
           }) {
-            Icon(Icons.Default.PlayArrow, contentDescription = "play")
-          }
+          Icon(Icons.Default.PlayArrow, contentDescription = "play")
         }
-        OutlinedButton(onClick = {
-          love = !love; Toast.makeText(
-          context,
-          if (love) "收藏成功" else "取消收藏",
-          Toast.LENGTH_SHORT
-        ).show()
-        }) {
+        OutlinedButton(
+          enabled = metadata != null, onClick = {
+            love = !love;
+            updateHistory()
+            Toast.makeText(
+              context, if (love) "收藏成功" else "取消收藏", Toast.LENGTH_SHORT
+            ).show()
+          }) {
           if (love) {
             Icon(
               imageVector = Icons.Default.Favorite,
@@ -168,31 +223,21 @@ fun DetailPage(
           } else {
             Icon(
               imageVector = Icons.Default.FavoriteBorder,
-
               contentDescription = "unlove"
             )
           }
         }
       }
-    },
-    floatingActionButtonPosition = FabPosition.End
+    }, floatingActionButtonPosition = FabPosition.End
   ) { innerPadding ->
     Column(
       modifier = Modifier
         .fillMaxSize()
         .padding(innerPadding),
     ) {
-      if (animationDetail == null) {
-        Box(Modifier.fillMaxSize(), Alignment.Center) {
-          CircularProgressIndicator()
-        }
-      } else {
-        HeaderRow(media = animationDetail!!, baseHorizontalPadding = baseHorizontalPadding)
-        if (staffInfo == null) {
-          Box(Modifier.fillMaxSize(), Alignment.Center) {
-            CircularProgressIndicator()
-          }
-        } else {
+      metadata?.let {
+        HeaderRow(media = metadata!!, baseHorizontalPadding = baseHorizontalPadding)
+        staffInfo?.let {
           Column(
             Modifier
               .weight(1f)
@@ -216,7 +261,7 @@ fun DetailPage(
             ) { pageIndex ->
               when (pageIndex) {
                 0 -> ExpandableDescription(
-                  description = animationDetail?.media?.description ?: "暂无简介",
+                  description = metadata?.media?.description ?: "暂无简介",
                   baseHorizontalPadding = baseHorizontalPadding
                 )
 
@@ -252,13 +297,27 @@ fun DetailPage(
               }
             }
           }
+        } ?: run {
+          Box(Modifier.fillMaxSize(), Alignment.Center) {
+            CircularProgressIndicator()
+          }
+        }
+      } ?: run {
+        Box(Modifier.fillMaxSize(), Alignment.Center) {
+          errMsg?.let {
+            EmptyCompose(it)
+          } ?: run {
+            CircularProgressIndicator()
+          }
         }
       }
     }
   }
 }
 
-
+/**
+ * 详情页头部
+ */
 @Composable
 private fun HeaderRow(media: Detail<Animation>, baseHorizontalPadding: Dp, love: Boolean = false) {
   Row(
@@ -325,31 +384,34 @@ private fun HeaderRow(media: Detail<Animation>, baseHorizontalPadding: Dp, love:
   }
 }
 
-
+/**
+ * 详情页剧集简介
+ */
 @Composable
 private fun ExpandableDescription(
   description: String, baseHorizontalPadding: Dp
 ) {
-  Card(
-    modifier = Modifier.fillMaxWidth(),
-    shape = RoundedCornerShape(12.dp),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+  Column(
+    Modifier.fillMaxSize()
   ) {
-    Column(
+    Card(
       modifier = Modifier
-        .fillMaxWidth()
-        .padding(baseHorizontalPadding)
+        .fillMaxWidth(),
+      shape = RoundedCornerShape(12.dp),
+      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-      Text(
-        text = "剧集简介",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold
-      )
-      Text(
-        text = description,
-        style = MaterialTheme.typography.bodyMedium,
-        overflow = TextOverflow.Ellipsis
-      )
+      Column(Modifier.padding(baseHorizontalPadding)) {
+        Text(
+          text = "剧集简介",
+          style = MaterialTheme.typography.titleMedium,
+          fontWeight = FontWeight.Bold
+        )
+        Text(
+          text = description,
+          style = MaterialTheme.typography.bodyMedium,
+          overflow = TextOverflow.Ellipsis
+        )
+      }
     }
   }
 }
@@ -362,55 +424,57 @@ private fun StaffCard(
   if (list.isNullOrEmpty()) {
     EmptyCompose(text = "暂无$title" + "信息")
   } else {
-    Card(
-      modifier = Modifier.fillMaxWidth(),
-      shape = RoundedCornerShape(12.dp),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-      Column(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(baseHorizontalPadding)
+    Column(Modifier.fillMaxSize()) {
+      Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
       ) {
-        Text(
-          text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold
-        )
-        LazyColumn(
-          verticalArrangement = Arrangement.spacedBy(4.dp)
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(baseHorizontalPadding)
         ) {
-          itemsIndexed(list) { _, item ->
-            Row(
-              Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.spacedBy(baseHorizontalPadding)
-            ) {
-              Column(Modifier.width(80.dp)) {
-                AsyncImage(
-                  model = item.imageUrl[0],
-                  contentScale = ContentScale.Crop,
-                  contentDescription = item.nameCn,
-                  placeholder = GifLoader.gifPlaceholder(
-                    R.drawable.loading, LocalContext.current
-                  ),
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(2.5f / 3f)
-                    .clip(MaterialTheme.shapes.medium)
-                )
-              }
-              Column(Modifier.weight(1f)) {
-                Text(
-                  text = item.nameCn,
-                  style = MaterialTheme.typography.labelMedium,
-                  maxLines = 1,
-                  overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                  text = item.role,
-                  style = MaterialTheme.typography.labelSmall,
-                  color = Color.Gray,
-                  maxLines = 1,
-                  overflow = TextOverflow.Ellipsis
-                )
+          Text(
+            text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold
+          )
+          LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+          ) {
+            itemsIndexed(list) { _, item ->
+              Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(baseHorizontalPadding)
+              ) {
+                Column(Modifier.width(80.dp)) {
+                  AsyncImage(
+                    model = item.imageUrl[0],
+                    contentScale = ContentScale.Crop,
+                    contentDescription = item.nameCn,
+                    placeholder = GifLoader.gifPlaceholder(
+                      R.drawable.loading, LocalContext.current
+                    ),
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .aspectRatio(2.5f / 3f)
+                      .clip(MaterialTheme.shapes.medium)
+                  )
+                }
+                Column(Modifier.weight(1f)) {
+                  Text(
+                    text = item.nameCn,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                  )
+                  Text(
+                    text = item.role,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                  )
+                }
               }
             }
           }
