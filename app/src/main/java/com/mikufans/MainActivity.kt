@@ -1,5 +1,6 @@
 package com.mikufans
 
+import HistoryPage
 import WeeklyPage
 import android.os.Bundle
 import android.util.Log
@@ -39,7 +40,6 @@ import com.mikufans.ui.nav.Navigation
 import com.mikufans.ui.page.AboutPage
 import com.mikufans.ui.page.DetailPage
 import com.mikufans.ui.page.FullSearch
-import com.mikufans.ui.page.HistoryPage
 import com.mikufans.ui.page.IndexPage
 import com.mikufans.ui.page.LoginPage
 import com.mikufans.ui.page.MinePage

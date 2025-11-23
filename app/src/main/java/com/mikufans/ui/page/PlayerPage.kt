@@ -108,9 +108,17 @@ fun PlaybackPage(
       historyPosition = localHistory[historyIndex].position ?: 0L
       isLove = localHistory[historyIndex].isLove
       sourceIndex = localHistory[historyIndex].sourceIndex ?: 0
-      sourceIndex = sourceIndex.coerceIn(0, detail?.sources?.size ?: 0)
-      episodeIndex = episodeIndex.coerceIn(0, detail?.sources[sourceIndex]?.episodes?.size ?: 0)
+
+      // 先限制 sourceIndex 范围
+      sourceIndex = sourceIndex.coerceAtMost((detail?.sources?.size ?: 1) - 1)
+      sourceIndex = sourceIndex.coerceAtLeast(0)
+
+      // 再限制 episodeIndex 范围
+      val maxEpisodeIndex = (detail?.sources?.getOrNull(sourceIndex)?.episodes?.size ?: 1) - 1
+      episodeIndex = episodeIndex.coerceAtMost(maxEpisodeIndex)
+      episodeIndex = episodeIndex.coerceAtLeast(0)
     }
+
 
   }
   val updateLocalHistory: () -> Unit = {

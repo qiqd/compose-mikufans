@@ -252,7 +252,7 @@ fun CapVideoPlayer(
             // 双击暂停/播放
             onDoubleTap = {
               Log.e("CapVideoPlayer", "onDoubleTap: $isPlaying")
-              capPlayerViewModel.pausePlayer(!isPlaying)
+              capPlayerViewModel.pausePlayer(isPlaying)
             },
             // 按下即重置 5 s 计时器
             onPress = {
