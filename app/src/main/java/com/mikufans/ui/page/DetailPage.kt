@@ -74,8 +74,6 @@ import org.anime.entity.animation.Animation
 import org.anime.entity.animation.Staff
 import org.anime.entity.base.Detail
 import org.anime.entity.base.Media
-import org.anime.entity.meta.SourceWithDelay
-import org.anime.parser.HtmlParser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,16 +83,13 @@ fun DetailPage(
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
   val tabs = arrayOf("简介", "导演", "演员", "制片", "编剧", "动画")
-  var detail by rememberSaveable { mutableStateOf<Detail<out Media>?>(null) }
   var metadata by rememberSaveable { mutableStateOf<Detail<Animation>?>(null) }
   var staffInfo by rememberSaveable { mutableStateOf<Staff?>(null) }
   val pagerState = rememberPagerState(pageCount = { tabs.size })
-  var targetApis by rememberSaveable { mutableStateOf<List<SourceWithDelay<out HtmlParser>>?>(null) }
   var subId by rememberSaveable { mutableStateOf<String?>(null) }
   var id by rememberSaveable { mutableStateOf(id) }
   var love by rememberSaveable { mutableStateOf(false) }
   var localHistory by rememberSaveable { mutableStateOf<List<History>>(mutableListOf()) }
-  var isEpisodeLoading by rememberSaveable { mutableStateOf(false) }
   var errMsg by rememberSaveable { mutableStateOf<String?>(null) }
   val loadLocalHistory: () -> Unit = {
     LocalStorage.getList(context, "view:history", History::class.java)?.toMutableList()
@@ -157,26 +152,35 @@ fun DetailPage(
     }
   }
   val fetchDetail: () -> Unit = {
-    isEpisodeLoading = true
     scope.launch {
-      if (id.isBlank()) {
-        AnimationService.fetchSearchSync(title) {
-          scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
-        }.let { animations ->
-          val associateBy = animations.associateBy { it.titleCn }
-          val best =
-            StringMatchUtil.findBestMatchWithJaroWinkler(animations.map { it.titleCn }, title)
-          associateBy[best]?.let { id = it.id }
+      when (type) {
+        Navigation.TYPE_ANIMATION -> {
+          if (id.isBlank()) {
+            AnimationService.fetchSearchSync(title) {
+              scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
+            }.let { animations ->
+              val associateBy = animations.associateBy { it.titleCn }
+              val best =
+                StringMatchUtil.findBestMatchWithJaroWinkler(animations.map { it.titleCn }, title)
+              associateBy[best]?.let { id = it.id }
+            }
+          }
+          AnimationService.fetchDetailSync(id) {
+            scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
+          }?.let { item ->
+            GlobalSharedValue.animationDetail = item
+            GlobalSharedValue.animationDetail?.media = metadata?.media
+          }
+        }
+
+        Navigation.TYPE_COMIC -> {
+//          ComicService.
+        }
+
+        else -> {
+
         }
       }
-      AnimationService.fetchDetailSync(id) {
-        scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
-      }?.let { item ->
-        detail = item
-        GlobalSharedValue.animationDetail = item
-        GlobalSharedValue.animationDetail?.media = metadata?.media
-      }
-      isEpisodeLoading = false
     }
   }
 
@@ -201,6 +205,7 @@ fun DetailPage(
     }, floatingActionButton = {
       Column {
         OutlinedButton(
+          modifier = Modifier.aspectRatio(1f / 1f),
           enabled = metadata != null, onClick = {
             if (GlobalSharedValue.animationDetail?.sources.isNullOrEmpty()) {
               Toast.makeText(context, "暂无播放源", Toast.LENGTH_SHORT).show()
@@ -211,6 +216,7 @@ fun DetailPage(
           Icon(Icons.Default.PlayArrow, contentDescription = "play")
         }
         OutlinedButton(
+          modifier = Modifier.aspectRatio(1f / 1f),
           enabled = metadata != null, onClick = {
             love = !love;
             updateHistory()
@@ -240,7 +246,7 @@ fun DetailPage(
         .padding(innerPadding),
     ) {
       metadata?.let {
-        HeaderRow(media = metadata!!, baseHorizontalPadding = baseHorizontalPadding)
+        HeaderRow(detail = metadata!!, baseHorizontalPadding = baseHorizontalPadding)
         staffInfo?.let {
           Column(
             Modifier
@@ -323,17 +329,17 @@ fun DetailPage(
  * 详情页头部
  */
 @Composable
-private fun HeaderRow(media: Detail<Animation>, baseHorizontalPadding: Dp, love: Boolean = false) {
+private fun HeaderRow(detail: Detail<out Media>, baseHorizontalPadding: Dp, love: Boolean = false) {
   Row(
     modifier = Modifier
       .fillMaxWidth()
       .height(200.dp),
     horizontalArrangement = Arrangement.spacedBy(baseHorizontalPadding)
   ) {
-    val animation = media.media
+    val media = detail.media
     AsyncImage(
-      model = animation.coverUrls.firstOrNull(),
-      contentDescription = animation.titleCn ?: animation.title,
+      model = media.coverUrls.firstOrNull(),
+      contentDescription = media.titleCn ?: media.title,
       placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current),
       modifier = Modifier
         .fillMaxHeight()
@@ -348,7 +354,7 @@ private fun HeaderRow(media: Detail<Animation>, baseHorizontalPadding: Dp, love:
         .fillMaxHeight(),
       verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-      animation.titleCn?.let {
+      media.titleCn?.let {
         Text(
           text = it,
           style = MaterialTheme.typography.titleLarge,
@@ -357,7 +363,7 @@ private fun HeaderRow(media: Detail<Animation>, baseHorizontalPadding: Dp, love:
           overflow = TextOverflow.Ellipsis
         )
       }
-      animation.title?.let {
+      media.title?.let {
         Text(
           text = it,
           style = MaterialTheme.typography.titleMedium,
@@ -366,19 +372,22 @@ private fun HeaderRow(media: Detail<Animation>, baseHorizontalPadding: Dp, love:
           overflow = TextOverflow.Ellipsis
         )
       }
-      animation.genre?.let {
+      media.genre?.let {
         Text(
           text = it, style = MaterialTheme.typography.bodyMedium, color = Color.Gray
         )
       }
-      animation.totalEpisode?.let {
-        Text(
-          text = "共 $it 集", style = MaterialTheme.typography.bodyMedium, color = Color.Gray
-        )
+      if (media is Animation) {
+        media.totalEpisode?.let {
+          Text(
+            text = "共 $it 集", style = MaterialTheme.typography.bodyMedium, color = Color.Gray
+          )
+        }
       }
-      if (!animation.rating.isNullOrBlank()) {
+
+      if (!media.rating.isNullOrBlank()) {
         Text(
-          text = "${animation.rating} 分 / ${animation.ratingCount} 人评分",
+          text = "${media.rating} 分 / ${media.ratingCount} 人评分",
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.primary
         )

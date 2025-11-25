@@ -112,7 +112,7 @@ fun MediaCard(
       Text(
         text = title ?: "暂无其他标题",
         textAlign = TextAlign.Start,
-        maxLines = 2,
+        maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         color = Color.Gray,
         fontSize = MaterialTheme.typography.bodySmall.fontSize

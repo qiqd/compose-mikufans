@@ -6,7 +6,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -23,7 +22,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Source
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -34,6 +32,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ShapeDefaults
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -65,6 +64,9 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.mikufans.R
 import com.mikufans.api.AnimationService
+import com.mikufans.api.ComicService
+import com.mikufans.api.NovelService
+import com.mikufans.ui.component.LoadingCompose
 import com.mikufans.ui.component.MediaCard
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.GifLoader
@@ -75,7 +77,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okio.IOException
 import org.anime.api.AnimationApi
+import org.anime.api.ComicApi
+import org.anime.api.NovelApi
 import org.anime.entity.animation.Animation
+import org.anime.entity.base.Media
+import org.anime.entity.comic.Comic
+import org.anime.entity.meta.SourceWithDelay
+import org.anime.entity.novel.Novel
+import org.anime.parser.HtmlParser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,13 +94,17 @@ fun IndexPage(
   baseHorizontalPadding: Dp,
 ) {
   var keyword by rememberSaveable { mutableStateOf("") }
-  var searchResult by rememberSaveable { mutableStateOf<List<Animation>>(emptyList()) }
-  var isLoading by rememberSaveable { mutableStateOf(false) }
+  var animationResult by rememberSaveable { mutableStateOf<List<Animation>>(emptyList()) }
+  var comicResult by rememberSaveable { mutableStateOf<List<Comic>>(emptyList()) }
+  var novelResult by rememberSaveable { mutableStateOf<List<Novel>>(emptyList()) }
+  var loadingAnimation by rememberSaveable { mutableStateOf(false) }
+  var loadingComic by rememberSaveable { mutableStateOf(false) }
+  var loadingNovel by rememberSaveable { mutableStateOf(false) }
   val focusManager = LocalFocusManager.current
   val coroutineScope = rememberCoroutineScope()
   var isRefreshing by rememberSaveable { mutableStateOf(false) }
   val pullToRefreshState = rememberPullToRefreshState()
-  val sheetState = rememberModalBottomSheetState()
+  val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
   val tabs = arrayOf("番剧", "漫画", "轻小说")
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
@@ -100,18 +113,66 @@ fun IndexPage(
   val animationApi = AnimationApi.SOURCES_WITH_DELAY
   var isInit by rememberSaveable { mutableStateOf(false) }
   var msg by remember { mutableStateOf("") }
-  val fetchSearch: (keyword: String) -> Unit = { keyword ->
+  val fetchAnimation: suspend (k: String) -> Unit = { k ->
+    loadingAnimation = true
+    AnimationService.fetchSearchSync(k) {
+      msg = it.message.toString()
+      Log.e("IndexPage-Search", "动画搜索失败", it)
+    }.takeIf { it.isNotEmpty() }?.let { animationResult = it }
+    loadingAnimation = false
+  }
+  val fetchComic: suspend (k: String) -> Unit = { k ->
+    loadingComic = true
+    ComicService.fetchSearchSync(k) {
+      msg = it.message.toString()
+      Log.e("IndexPage-Search", "漫画搜索失败", it)
+    }.takeIf {
+      it.isNotEmpty()
+    }?.let {
+      Log.e("IndexPage-Search", "漫画搜索成功:${it}")
+      comicResult = it
+    }
+    loadingComic = false
+  }
+  val fetchNovel: suspend (k: String) -> Unit = { k ->
+    loadingNovel = true
+    NovelService.fetchSearchSync(k) {
+      msg = "轻小说搜索失败"
+      Log.e("IndexPage-Search", "轻小说搜索失败", it)
+    }.takeIf { it.isNotEmpty() }?.let { novelResult = it }
+    loadingNovel = false
+  }
+  val fetchSearch: (keyword: String) -> Unit = { k ->
     coroutineScope.launch {
-      isLoading = true
-      AnimationService.fetchSearchSync(keyword) {
-        Log.e("IndexPage-Search", "搜索失败", it)
-        coroutineScope.launch {
+      fetchAnimation(k)
+      fetchComic(k)
+      fetchNovel(k)
+    }
+  }
+  val refreshSource: () -> Unit = {
+    coroutineScope.launch(Dispatchers.IO) {
+      val currentTime = System.currentTimeMillis()
+      if (currentTime - lastRefreshTime < refreshCooldown) {
+        withContext(Dispatchers.Main) {
           Toast.makeText(
-            navController.context, it.message, Toast.LENGTH_SHORT
+            navController.context, "操作太频繁，请稍后再试", Toast.LENGTH_SHORT
           ).show()
         }
-      }.takeIf { it.isNotEmpty() }?.let { searchResult = it }
-      isLoading = false
+        isRefreshing = false
+        return@launch
+      }
+      lastRefreshTime = currentTime
+      try {
+        isRefreshing = true
+        AnimationApi.initialization()
+        ComicApi.initialization()
+        NovelApi.initialization()
+        delay(2000L)
+      } catch (e: Exception) {
+        Log.e("IndexPage-Refresh", "刷新失败", e)
+      } finally {
+        isRefreshing = false
+      }
     }
   }
   LaunchedEffect(msg) {
@@ -121,26 +182,27 @@ fun IndexPage(
   }
   BackHandler { activity.moveTaskToBack(true) }
   LaunchedEffect(Unit) {
-    if (AnimationApi.SOURCES_WITH_DELAY.isNotEmpty()) {
-      return@LaunchedEffect
-    }
     isInit = true
     msg = "初始化资源中"
-    coroutineScope.launch(Dispatchers.IO) {
-      try {
-        AnimationApi.initialization()
-        msg = "初始化资源完成"
-        Log.w("IndexPage-Init", AnimationApi.SOURCES_WITH_DELAY.size.toString())
-      } catch (e: TimeoutCancellationException) {
-        Log.e("IndexPage-Init", "初始化资源超时", e)
-        msg = "初始化资源失败"
-      } catch (e: IOException) {
-        e.printStackTrace()
-        msg = "网络无法使用"
-      } catch (e: Exception) {
-        msg = e.message ?: "未知错误"
-      } finally {
-        isInit = false
+    if (AnimationApi.SOURCES_WITH_DELAY.isEmpty()) {
+      coroutineScope.launch(Dispatchers.IO) {
+        try {
+          AnimationApi.initialization()
+          ComicApi.initialization()
+          NovelApi.initialization()
+          msg = "初始化资源完成"
+          Log.w("IndexPage-Init", AnimationApi.SOURCES_WITH_DELAY.size.toString())
+        } catch (e: TimeoutCancellationException) {
+          Log.e("IndexPage-Init", "初始化资源超时", e)
+          msg = "初始化资源失败"
+        } catch (e: IOException) {
+          e.printStackTrace()
+          msg = "网络无法使用"
+        } catch (e: Exception) {
+          msg = e.message ?: "未知错误"
+        } finally {
+          isInit = false
+        }
       }
     }
   }
@@ -149,8 +211,7 @@ fun IndexPage(
     topBar = {
       TopAppBar(title = { Text("首页") }, actions = {
         IconButton(
-          enabled = isInit.not() && isRefreshing.not(),
-          onClick = {
+          enabled = isInit.not() && isRefreshing.not(), onClick = {
             Log.i("IndexPage-TopBar", "点击切换资源")
             coroutineScope.launch { sheetState.show() }
           }) {
@@ -198,33 +259,7 @@ fun IndexPage(
           color = MaterialTheme.colorScheme.primary,
           state = pullToRefreshState
         )
-      }, onRefresh = {
-        coroutineScope.launch(Dispatchers.IO) {
-          val currentTime = System.currentTimeMillis()
-          // 检查是否在冷却时间内
-          if (currentTime - lastRefreshTime < refreshCooldown) {
-            withContext(Dispatchers.Main) {
-              Toast.makeText(
-                navController.context,
-                "操作太频繁，请稍后再试",
-                Toast.LENGTH_SHORT
-              ).show()
-            }
-            isRefreshing = false
-            return@launch
-          }
-          try {
-            isRefreshing = true
-            lastRefreshTime = currentTime
-            AnimationApi.initialization()
-            delay(2000L)
-          } catch (e: Exception) {
-            Log.e("IndexPage-Refresh", "刷新失败", e)
-          } finally {
-            isRefreshing = false
-          }
-        }
-      }) {
+      }, onRefresh = { refreshSource() }) {
         Column(Modifier.fillMaxSize()) {
           PrimaryTabRow(selectedTabIndex = tabIndex.value) {
             tabs.forEachIndexed { index, title ->
@@ -242,24 +277,31 @@ fun IndexPage(
             }
           }
           HorizontalPager(
-            state = pagerState,
-            pageSpacing = 10.dp,
-            modifier = Modifier.fillMaxSize()
+            state = pagerState, pageSpacing = 10.dp, modifier = Modifier.fillMaxSize()
           ) {
-            // 添加加载指示器
-            if (isLoading) {
-              Box(
-                modifier = Modifier
-                  .fillMaxSize()
-                  .padding(16.dp), contentAlignment = Alignment.Center
-              ) {
-                CircularProgressIndicator()
+            when (it) {
+              0 -> {
+                if (loadingAnimation) {
+                  LoadingCompose()
+                } else {
+                  AnimationPage(animationResult, navController)
+                }
               }
-            } else {
-              when (it) {
-                0 -> AnimationPage(searchResult, navController)
-                1 -> ComicPage(listOf(), navController)
-                2 -> NovelPage(listOf(), navController)
+
+              1 -> {
+                if (loadingComic) {
+                  LoadingCompose()
+                } else {
+                  ComicPage(comicResult, navController)
+                }
+              }
+
+              2 -> {
+                if (loadingNovel) {
+                  LoadingCompose()
+                } else {
+                  NovelPage(novelResult, navController)
+                }
               }
             }
           }
@@ -272,56 +314,86 @@ fun IndexPage(
       ModalBottomSheet(
         onDismissRequest = {
           coroutineScope.launch { sheetState.hide() }
-        },
-        sheetState = sheetState
+        }, sheetState = sheetState
       ) {
-        LazyColumn {
-          itemsIndexed(
-            items = AnimationApi.SOURCES_WITH_DELAY.toList(),
-          ) { index, item ->
-            ListItem(
-              modifier = Modifier.clickable {
+        val tabs = arrayOf("动画", "漫画", "小说")
+        val pagerState = rememberPagerState(pageCount = { tabs.size })
+        PrimaryTabRow(selectedTabIndex = pagerState.currentPage) {
+          tabs.forEachIndexed { index, title ->
+            Tab(
+              text = { Text(title) },
+              selected = pagerState.currentPage == index,
+              selectedContentColor = MaterialTheme.colorScheme.primary,
+              unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+              onClick = {
+                Log.i("IndexPage-Tab", "点击切换到$index")
                 coroutineScope.launch {
-                  AnimationApi.moveToTop(index)
-                  sheetState.hide()
+                  pagerState.animateScrollToPage(index)
                 }
-              },
-              tonalElevation = 2.dp,
-              leadingContent = {
-                AsyncImage(
-                  modifier = Modifier
-                    .height(150.dp)
-                    .aspectRatio(2.5f / 3f)
-                    .clip(MaterialTheme.shapes.medium),
-                  contentScale = ContentScale.Fit,
-                  model = item.htmlParser.logoUrl,
-                  contentDescription = item.htmlParser.name,
-                  placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current),
-                )
-              },
-              headlineContent = {
-                Text(item.htmlParser.name)
-              },
-              supportingContent = {
-                Text("延迟: ${item.delay}ms")
-              }
-            )
-            HorizontalDivider()
+              })
           }
         }
+        HorizontalPager(state = pagerState, userScrollEnabled = false) {
+          when (it) {
+            0 -> SourcePage(
+              source = AnimationApi.SOURCES_WITH_DELAY.toList(),
+              sheetState = sheetState
+            )
+
+            1 -> SourcePage(source = ComicApi.SOURCES_WITH_DELAY.toList(), sheetState = sheetState)
+            2 -> SourcePage(source = NovelApi.SOURCES_WITH_DELAY.toList(), sheetState = sheetState)
+          }
+        }
+
       }
     }
   }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AnimationPage(animations: List<Animation>?, navController: NavController) {
+fun SourcePage(source: List<SourceWithDelay<out HtmlParser>>, sheetState: SheetState) {
+  val coroutineScope = rememberCoroutineScope()
+  LazyColumn {
+    itemsIndexed(
+      items = source,
+    ) { index, item ->
+      ListItem(modifier = Modifier.clickable {
+        coroutineScope.launch {
+          AnimationApi.moveToTop(index)
+          sheetState.hide()
+        }
+      }, tonalElevation = 2.dp, leadingContent = {
+        AsyncImage(
+          modifier = Modifier
+            .height(150.dp)
+            .aspectRatio(2.5f / 3f)
+            .clip(MaterialTheme.shapes.medium),
+          contentScale = ContentScale.Fit,
+          model = item.htmlParser.logoUrl,
+          contentDescription = item.htmlParser.name,
+          placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current),
+        )
+      }, headlineContent = {
+        Text(item.htmlParser.name)
+      }, supportingContent = {
+        Text("延迟: ${item.delay}ms")
+      })
+      HorizontalDivider()
+    }
+  }
+}
+
+@Composable
+fun AnimationPage(
+  animations: List<Media>, navController: NavController,
+) {
   LazyColumn(
     contentPadding = PaddingValues(vertical = 5.dp),
     verticalArrangement = Arrangement.spacedBy(5.dp),
     modifier = Modifier.fillMaxSize()
   ) {
-    animations?.let {
+    animations.let {
       items(it.size) { index ->
         MediaCard(
           id = it[index].id,
@@ -335,20 +407,41 @@ fun AnimationPage(animations: List<Animation>?, navController: NavController) {
           airDate = it[index].releaseDate,
           onTap = { id ->
             Navigation.navigateToDetail(
-              id = id,
-              title = it[index].titleCn,
-              navController = navController
+              id = id, title = it[index].titleCn, navController = navController
             )
-          }
-        )
+          })
       }
     }
   }
 }
 
 @Composable
-fun ComicPage(comics: List<Any>, navController: NavController) {
-
+fun ComicPage(comics: List<Comic>, navController: NavController) {
+  LazyColumn(
+    contentPadding = PaddingValues(vertical = 5.dp),
+    verticalArrangement = Arrangement.spacedBy(5.dp),
+    modifier = Modifier.fillMaxSize()
+  ) {
+    comics.let {
+      items(it.size) { index ->
+        MediaCard(
+          id = it[index].id,
+          status = it[index].status,
+          coverUrl = it[index].coverUrls[0],
+          title = it[index].title,
+          titleCn = it[index].titleCn,
+          rating = it[index].rating,
+          ratingCount = it[index].ratingCount,
+          genre = it[index].genre,
+          airDate = it[index].releaseDate,
+          onTap = { id ->
+            Navigation.navigateToDetail(
+              id = id, title = it[index].titleCn, navController = navController
+            )
+          })
+      }
+    }
+  }
 }
 
 @Composable
