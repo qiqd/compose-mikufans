@@ -1,5 +1,6 @@
 package com.mikufans.ui.nav
 
+import android.util.Log
 import androidx.navigation.NavController
 import com.mikufans.util.GlobalSharedValue
 import java.net.URLEncoder
@@ -44,6 +45,7 @@ object Navigation {
     val enCodeSubId = URLEncoder.encode(subId, "UTF-8")
     val enCodeTitle = URLEncoder.encode(title, "UTF-8")
     GlobalSharedValue.episodes = episodes.toMutableList()
+    Log.e("Navigation", "navigateToPlayer: id: $id, subId: $subId, title: $title")
     navController.navigate("$PLAYER/$enCodeId/$enCodeSubId/$enCodeTitle") {
       launchSingleTop = true
       restoreState = true

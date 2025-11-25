@@ -224,6 +224,7 @@ fun MainScreen(activity: ComponentActivity) {
         var subId = backStackEntry.arguments?.getString("subId") ?: ""
         subId = URLDecoder.decode(subId, "UTF-8")
         title = URLDecoder.decode(title, "UTF-8")
+        Log.e("MainActivity Go to PlayerPage", "id: $id, subId: $subId, title: $title")
         PlaybackPage(id, subId, title, navController, baseHorizontalPadding)
       }
       composable(route = Navigation.HISTORY) { HistoryPage(navController, baseHorizontalPadding) }

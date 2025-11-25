@@ -61,7 +61,7 @@ import com.mikufans.view.PlayerViewModel
 @OptIn(UnstableApi::class)
 @Composable
         /* ====================== 播放器 UI 壳 ====================== */
-fun CapVideoPlayer(
+fun CapPlayer(
 
   videoUrl: String,
   position: Long,

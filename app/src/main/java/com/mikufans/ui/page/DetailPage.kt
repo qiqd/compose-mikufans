@@ -202,6 +202,10 @@ fun DetailPage(
       Column {
         OutlinedButton(
           enabled = metadata != null, onClick = {
+            if (GlobalSharedValue.animationDetail?.sources.isNullOrEmpty()) {
+              Toast.makeText(context, "暂无播放源", Toast.LENGTH_SHORT).show()
+              return@OutlinedButton
+            }
             Navigation.navigateToPlayer(id, subId!!, "", navController)
           }) {
           Icon(Icons.Default.PlayArrow, contentDescription = "play")

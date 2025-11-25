@@ -1,5 +1,6 @@
 package com.mikufans.ui.page
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
@@ -51,7 +52,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.media3.common.MediaItem
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.mikufans.R
@@ -62,7 +65,7 @@ import com.mikufans.ui.component.EmptyCompose
 import com.mikufans.util.GifLoader
 import com.mikufans.util.GlobalSharedValue
 import com.mikufans.util.LocalStorage
-import com.mikufans.view.CapPlayerViewModel
+import com.mikufans.view.CapVideoPlayerViewModel
 import kotlinx.coroutines.launch
 import org.anime.entity.animation.Animation
 import org.anime.entity.base.Source
@@ -84,14 +87,11 @@ fun PlaybackPage(
   val tabs = arrayOf("简介", "剧集")
   var isLove by rememberSaveable { mutableStateOf(false) }
   var currentPosition by rememberSaveable { mutableLongStateOf(0L) }
-  var historyPosition by rememberSaveable { mutableLongStateOf(0L) }
-  var playerKey by rememberSaveable { mutableIntStateOf(-1) }
   var isLoading by rememberSaveable { mutableStateOf(false) }
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
   val coroutineScope = rememberCoroutineScope()
-  var isFullscreen by rememberSaveable { mutableStateOf(false) }
-  val capPlayer: CapPlayerViewModel = viewModel()
+  var isFullscreen by remember { mutableStateOf(false) }
   var localHistory by rememberSaveable { mutableStateOf<List<History>>(emptyList()) }
   var viewInfo by rememberSaveable { mutableStateOf<ViewInfo?>(null) }
   var episodeIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -99,27 +99,33 @@ fun PlaybackPage(
   var sourceIndex by rememberSaveable { mutableIntStateOf(0) }
   var errorMsg by rememberSaveable { mutableStateOf("") }
   val detail = GlobalSharedValue.animationDetail
+  val capViewModel: CapVideoPlayerViewModel = viewModel()
+  var tempId by rememberSaveable { mutableStateOf<String?>(null) }
+  val exoPlayer = capViewModel.getPlayer(context = content) {
+    isLoading = false
+    errorMsg = it.message ?: "播放错误"
+  }
+  val initPlayer: () -> Unit = {
+    exoPlayer.setMediaItem(MediaItem.fromUri((viewInfo?.urls[0] ?: "").toUri()))
+    exoPlayer.prepare()
+    exoPlayer.seekTo(currentPosition.coerceAtLeast(0L))
+    exoPlayer.playWhenReady = true
+  }
   val loadLocalHistory: () -> Unit = {
     LocalStorage.getList(content, "view:history", History::class.java)?.toMutableList()
       ?.let { localHistory = it }
     historyIndex = localHistory.indexOfFirst { it.subId == subId }
     if (historyIndex >= 0) {
       episodeIndex = localHistory[historyIndex].episodeIndex ?: 0
-      historyPosition = localHistory[historyIndex].position ?: 0L
+      currentPosition = localHistory[historyIndex].position ?: 0L
       isLove = localHistory[historyIndex].isLove
       sourceIndex = localHistory[historyIndex].sourceIndex ?: 0
-
-      // 先限制 sourceIndex 范围
       sourceIndex = sourceIndex.coerceAtMost((detail?.sources?.size ?: 1) - 1)
       sourceIndex = sourceIndex.coerceAtLeast(0)
-
-      // 再限制 episodeIndex 范围
       val maxEpisodeIndex = (detail?.sources?.getOrNull(sourceIndex)?.episodes?.size ?: 1) - 1
       episodeIndex = episodeIndex.coerceAtMost(maxEpisodeIndex)
       episodeIndex = episodeIndex.coerceAtLeast(0)
     }
-
-
   }
   val updateLocalHistory: () -> Unit = {
     val animation = detail?.media
@@ -131,7 +137,7 @@ fun PlaybackPage(
       cover = animation?.coverUrls[0],
       episodeIndex = episodeIndex,
       videoUrl = viewInfo?.urls[0],
-      position = currentPosition - 5000,
+      position = exoPlayer.currentPosition - 5000,
       isLove = isLove,
       sourceIndex = sourceIndex,
       time = System.currentTimeMillis(),
@@ -149,25 +155,29 @@ fun PlaybackPage(
       sources.takeIf { it[sourceIndex].episodes.isNullOrEmpty().not() }?.let {
         coroutineScope.launch {
           AnimationService.fetchViewSync(sources[sourceIndex].episodes[episodeIndex].id) { msg ->
+            isLoading = false
             errorMsg = msg.message.toString()
             coroutineScope.launch {
-              Toast.makeText(content, msg.message, Toast.LENGTH_SHORT).show()
+              isLoading = false
+              Toast.makeText(content, "播放失败,试着换一条线路", Toast.LENGTH_SHORT).show()
             }
           }?.let { info ->
-            viewInfo = info; playerKey = episodeIndex; isLoading = false
-          }
+            viewInfo = info; isLoading = false
+          }?.also { initPlayer() }
         }
       }
     }
   }
   val episodeChange: () -> Unit = {
-    historyPosition = 0L
+    currentPosition = 0L
     fetchPlayerInfo()
   }
   DisposableEffect(Unit) { onDispose { updateLocalHistory() } }
 
   /* 初始数据加载 */
   LaunchedEffect(Unit) {
+    if (exoPlayer.currentMediaItem != null) return@LaunchedEffect
+    Log.e("PlayerPage receive", "id: $id, subId: $subId, title: $title")
     loadLocalHistory()
     fetchPlayerInfo()
   }
@@ -191,35 +201,24 @@ fun PlaybackPage(
       ) {
         val animation = detail?.media
         CapVideoPlayer(
-          key = playerKey.toString(),
           isLoading = isLoading,
-          videoUrl = viewInfo?.urls?.getOrNull(0),
-          title = animation?.titleCn ?: animation?.title ?: "暂无标题",
-          episodeIndex = episodeIndex,
+          title = animation?.title ?: "暂无标题",
           showNextButton = false,
           showPreviousButton = false,
           navController = navController,
-          initPosition = historyPosition,
-          onPositionChange = {
-            currentPosition = it
-          },
-          onLeadingBackButtonTab = {
-            if (!isFullscreen) {
-              navController.popBackStack()
-              capPlayer.releasePlayer()
-            }
-          },
-          onLandscapeChange = {
-            isFullscreen = it
-          },
+          onEpisodeTab = {},
+          onLandscapeChange = { isFullscreen = it },
           onPlayerError = {
-            Toast.makeText(
-              content, "播放出错,试着换一条线路: ${it.message}", Toast.LENGTH_SHORT
-            ).show()
-          })
+            errorMsg = it.message.toString()
+            Toast.makeText(content, it.message, Toast.LENGTH_SHORT).show()
+          }
+        )
       }
 
-      PrimaryTabRow(selectedTabIndex = tabIndex.value, Modifier.padding(horizontal = 10.dp)) {
+      PrimaryTabRow(
+        selectedTabIndex = tabIndex.value,
+        modifier = Modifier.padding(horizontal = 10.dp)
+      ) {
         tabs.forEachIndexed { index, title ->
           Tab(
             selectedContentColor = MaterialTheme.colorScheme.primary,
@@ -233,23 +232,23 @@ fun PlaybackPage(
         }
       }
       HorizontalPager(
+        userScrollEnabled = false,
         state = pagerState, modifier = Modifier.fillMaxSize()
       ) { page ->
         when (page) {
           0 -> AnimeInfoPage(detail?.media, errorMsg, isLove, baseHorizontalPadding) { isLove = it }
           1 -> SourcePage(
             errorMsg = errorMsg,
-            activeIndex = episodeIndex,
+            episodeIndex = episodeIndex,
+            historySourceIndex = sourceIndex,
             sources = detail?.sources,
             baseHorizontalPadding = baseHorizontalPadding,
-            onSourceChange = { s: Int ->
+            onEpisodeChange = { s, e ->
               sourceIndex = s
-            },
-            onEpisodeChange = { _, index ->
-              if (index == episodeIndex || isLoading) return@SourcePage
-              episodeIndex = index
+              episodeIndex = e
               episodeChange()
-            })
+            }
+          )
         }
       }
     }
@@ -384,11 +383,11 @@ fun AnimeInfoPage(
 @Composable
 fun SourcePage(
   errorMsg: String,
-  activeIndex: Int = 0,
+  historySourceIndex: Int,
+  episodeIndex: Int,
   sources: List<Source>?,
-  onSourceChange: (Int) -> Unit,
   baseHorizontalPadding: Dp,
-  onEpisodeChange: (String, Int) -> Unit
+  onEpisodeChange: (sourceIndex: Int, episodeIndex: Int) -> Unit
 ) {
   val sourcePagerState = rememberPagerState(pageCount = { sources?.size ?: 0 })
   val coroutineScope = rememberCoroutineScope()
@@ -410,13 +409,19 @@ fun SourcePage(
             },
             selected = sourcePagerState.currentPage == index,
             onClick = {
-              onSourceChange(index)
               coroutineScope.launch { sourcePagerState.animateScrollToPage(index) }
             })
         }
       }
-      HorizontalPager(state = sourcePagerState, userScrollEnabled = false) { index ->
-        EpisodePage(sources[index], activeIndex, onEpisodeChange)
+      HorizontalPager(state = sourcePagerState) { index ->
+        EpisodePage(
+          source = sources[index],
+          historySourceIndex = historySourceIndex,
+          sourceIndex = sourcePagerState.currentPage,
+          episodeIndex = episodeIndex,
+          onEpisodeChange = { sourceIndex, index ->
+            onEpisodeChange(sourceIndex, index)
+          })
       }
     }
   } ?: run {
@@ -429,9 +434,15 @@ fun SourcePage(
  * 剧集页
  */
 @Composable
-fun EpisodePage(source: Source, activeIndex: Int = 0, onEpisodeChange: (String, Int) -> Unit) {
+fun EpisodePage(
+  source: Source,
+  historySourceIndex: Int,
+  sourceIndex: Int,
+  episodeIndex: Int,
+  onEpisodeChange: (sourceIndex: Int, episodeIndex: Int) -> Unit
+) {
   val episodes = source.episodes
-  var index by rememberSaveable() { mutableStateOf(activeIndex) }
+  var index by rememberSaveable { mutableStateOf(episodeIndex) }
   if (episodes.isNotEmpty()) {
     episodes.let { episodeList ->
       LazyVerticalGrid(
@@ -444,7 +455,7 @@ fun EpisodePage(source: Source, activeIndex: Int = 0, onEpisodeChange: (String, 
         verticalArrangement = Arrangement.spacedBy(8.dp)
       ) {
         itemsIndexed(episodeList) { i, episode ->
-          if (index == i) {
+          if (index == i && historySourceIndex == sourceIndex) {
             Button(
               onClick = {}, modifier = Modifier.fillMaxWidth()
             ) { Text(text = "${i + 1}", maxLines = 1) }
@@ -452,7 +463,7 @@ fun EpisodePage(source: Source, activeIndex: Int = 0, onEpisodeChange: (String, 
             OutlinedButton(
               onClick = {
                 index = i
-                onEpisodeChange(episode.id, index)
+                onEpisodeChange(sourceIndex, index)
               }, modifier = Modifier.fillMaxWidth()
             ) { Text(text = "${i + 1}", maxLines = 1) }
           }

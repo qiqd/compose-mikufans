@@ -6,7 +6,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 
-class CapPlayerViewModel : ViewModel() {
+class CapVideoPlayerViewModel : ViewModel() {
   private var exoPlayer: ExoPlayer? = null
   private var currentPosition: Long = 0L
   private var currentUrl = ""
@@ -33,8 +33,6 @@ class CapPlayerViewModel : ViewModel() {
     }
     return exoPlayer!!
   }
-
-  fun getCurrentPosition(): Long = currentPosition
 
   fun setCurrentPosition(position: Long) {
     currentPosition = position

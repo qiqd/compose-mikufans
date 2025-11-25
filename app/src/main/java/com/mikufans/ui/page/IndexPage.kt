@@ -91,7 +91,6 @@ fun IndexPage(
   val coroutineScope = rememberCoroutineScope()
   var isRefreshing by rememberSaveable { mutableStateOf(false) }
   val pullToRefreshState = rememberPullToRefreshState()
-  var showBottomSheet by rememberSaveable { mutableStateOf(false) }
   val sheetState = rememberModalBottomSheetState()
   val tabs = arrayOf("番剧", "漫画", "轻小说")
   val pagerState = rememberPagerState(pageCount = { tabs.size })
@@ -100,6 +99,7 @@ fun IndexPage(
   val refreshCooldown = 5000L
   val animationApi = AnimationApi.SOURCES_WITH_DELAY
   var isInit by rememberSaveable { mutableStateOf(false) }
+  var msg by remember { mutableStateOf("") }
   val fetchSearch: (keyword: String) -> Unit = { keyword ->
     coroutineScope.launch {
       isLoading = true
@@ -114,43 +114,31 @@ fun IndexPage(
       isLoading = false
     }
   }
-
+  LaunchedEffect(msg) {
+    if (msg.isNotEmpty()) {
+      Toast.makeText(navController.context, msg, Toast.LENGTH_SHORT).show()
+    }
+  }
   BackHandler { activity.moveTaskToBack(true) }
   LaunchedEffect(Unit) {
     if (AnimationApi.SOURCES_WITH_DELAY.isNotEmpty()) {
       return@LaunchedEffect
     }
     isInit = true
-    Toast.makeText(navController.context, "初始化资源中", Toast.LENGTH_SHORT).show()
+    msg = "初始化资源中"
     coroutineScope.launch(Dispatchers.IO) {
       try {
         AnimationApi.initialization()
-        withContext(Dispatchers.Main) {
-          Toast.makeText(
-            navController.context, "初始化资源完成", Toast.LENGTH_SHORT
-          ).show()
-        }
+        msg = "初始化资源完成"
         Log.w("IndexPage-Init", AnimationApi.SOURCES_WITH_DELAY.size.toString())
       } catch (e: TimeoutCancellationException) {
         Log.e("IndexPage-Init", "初始化资源超时", e)
-        withContext(Dispatchers.Main) {
-          Toast.makeText(
-            navController.context, "初始化资源失败", Toast.LENGTH_SHORT
-          ).show()
-        }
+        msg = "初始化资源失败"
       } catch (e: IOException) {
         e.printStackTrace()
-        withContext(Dispatchers.Main) {
-          Toast.makeText(
-            navController.context, "网络无法使用", Toast.LENGTH_SHORT
-          ).show()
-        }
+        msg = "网络无法使用"
       } catch (e: Exception) {
-        withContext(Dispatchers.Main) {
-          Toast.makeText(
-            navController.context, e.message, Toast.LENGTH_SHORT
-          ).show()
-        }
+        msg = e.message ?: "未知错误"
       } finally {
         isInit = false
       }
@@ -165,7 +153,6 @@ fun IndexPage(
           onClick = {
             Log.i("IndexPage-TopBar", "点击切换资源")
             coroutineScope.launch { sheetState.show() }
-            showBottomSheet = true
           }) {
           Icon(
             imageVector = Icons.Default.Source, contentDescription = "切换资源"
@@ -281,10 +268,10 @@ fun IndexPage(
     }
 
     // 底部弹窗
-    if (showBottomSheet) {
+    if (sheetState.isVisible) {
       ModalBottomSheet(
         onDismissRequest = {
-          showBottomSheet = false
+          coroutineScope.launch { sheetState.hide() }
         },
         sheetState = sheetState
       ) {
@@ -294,7 +281,6 @@ fun IndexPage(
           ) { index, item ->
             ListItem(
               modifier = Modifier.clickable {
-                showBottomSheet = false
                 coroutineScope.launch {
                   AnimationApi.moveToTop(index)
                   sheetState.hide()
