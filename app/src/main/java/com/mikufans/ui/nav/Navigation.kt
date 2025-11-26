@@ -86,4 +86,15 @@ object Navigation {
       restoreState = true
     }
   }
+
+  fun navigateToComic(
+    id: String,
+    navController: NavController,
+  ) {
+    val enCodeId = URLEncoder.encode(id, "UTF-8")
+    navController.navigate("$TYPE_COMIC/$enCodeId") {
+      launchSingleTop = true
+      restoreState = true
+    }
+  }
 }

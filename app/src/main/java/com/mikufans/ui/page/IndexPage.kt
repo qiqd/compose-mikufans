@@ -182,11 +182,11 @@ fun IndexPage(
   }
   BackHandler { activity.moveTaskToBack(true) }
   LaunchedEffect(Unit) {
-    isInit = true
-    msg = "初始化资源中"
     if (AnimationApi.SOURCES_WITH_DELAY.isEmpty()) {
       coroutineScope.launch(Dispatchers.IO) {
         try {
+          isInit = true
+          msg = "初始化资源中"
           AnimationApi.initialization()
           ComicApi.initialization()
           NovelApi.initialization()

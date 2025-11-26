@@ -133,7 +133,7 @@ fun HistoryPage(navController: NavController, baseHorizontalPadding: Dp) {
                 Box(
                   Modifier
                     .fillMaxSize()
-                    .background(color)
+                    .background(color, MaterialTheme.shapes.medium)
                     .clip(MaterialTheme.shapes.medium)
                 ) {
                   Icon(

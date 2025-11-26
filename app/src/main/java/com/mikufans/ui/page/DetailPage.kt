@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -24,8 +25,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,10 +41,12 @@ import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -61,6 +65,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.mikufans.R
 import com.mikufans.api.AnimationService
+import com.mikufans.api.ComicService
 import com.mikufans.api.MetaService
 import com.mikufans.entity.History
 import com.mikufans.ui.component.EmptyCompose
@@ -69,6 +74,7 @@ import com.mikufans.util.GifLoader
 import com.mikufans.util.GlobalSharedValue
 import com.mikufans.util.LocalStorage
 import com.mikufans.util.StringMatchUtil
+import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.launch
 import org.anime.entity.animation.Animation
 import org.anime.entity.animation.Staff
@@ -82,15 +88,15 @@ fun DetailPage(
 ) {
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
-  val tabs = arrayOf("简介", "导演", "演员", "制片", "编剧", "动画")
   var metadata by rememberSaveable { mutableStateOf<Detail<Animation>?>(null) }
   var staffInfo by rememberSaveable { mutableStateOf<Staff?>(null) }
-  val pagerState = rememberPagerState(pageCount = { tabs.size })
   var subId by rememberSaveable { mutableStateOf<String?>(null) }
   var id by rememberSaveable { mutableStateOf(id) }
   var love by rememberSaveable { mutableStateOf(false) }
   var localHistory by rememberSaveable { mutableStateOf<List<History>>(mutableListOf()) }
   var errMsg by rememberSaveable { mutableStateOf<String?>(null) }
+  var mediaDetail by rememberSaveable { mutableStateOf<Detail<out Media>?>(null) }
+  var comicIndex by rememberSaveable { mutableIntStateOf(0) }
   val loadLocalHistory: () -> Unit = {
     LocalStorage.getList(context, "view:history", History::class.java)?.toMutableList()
       ?.let { localHistory = it }
@@ -155,6 +161,7 @@ fun DetailPage(
     scope.launch {
       when (type) {
         Navigation.TYPE_ANIMATION -> {
+          loadMetadata()
           if (id.isBlank()) {
             AnimationService.fetchSearchSync(title) {
               scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
@@ -174,18 +181,19 @@ fun DetailPage(
         }
 
         Navigation.TYPE_COMIC -> {
-//          ComicService.
+          ComicService.fetchDetailSync(id) {
+            errMsg = it.message.toString()
+          }?.let { mediaDetail = it; GlobalSharedValue.comicDetail = it }
         }
 
         else -> {
-
+//todo novel case
         }
       }
     }
   }
 
   LaunchedEffect(Unit) {
-    loadMetadata()
     if (metadata != null) return@LaunchedEffect
     fetchDetail()
   }
@@ -203,38 +211,45 @@ fun DetailPage(
         }
       })
     }, floatingActionButton = {
-      Column {
-        OutlinedButton(
-          modifier = Modifier.aspectRatio(1f / 1f),
-          enabled = metadata != null, onClick = {
-            if (GlobalSharedValue.animationDetail?.sources.isNullOrEmpty()) {
-              Toast.makeText(context, "暂无播放源", Toast.LENGTH_SHORT).show()
-              return@OutlinedButton
-            }
-            Navigation.navigateToPlayer(id, subId!!, "", navController)
-          }) {
-          Icon(Icons.Default.PlayArrow, contentDescription = "play")
-        }
-        OutlinedButton(
-          modifier = Modifier.aspectRatio(1f / 1f),
-          enabled = metadata != null, onClick = {
-            love = !love;
-            updateHistory()
-            Toast.makeText(
-              context, if (love) "收藏成功" else "取消收藏", Toast.LENGTH_SHORT
-            ).show()
-          }) {
-          if (love) {
+      if (type == Navigation.TYPE_ANIMATION) {
+        Column {
+          IconButton(
+            enabled = metadata != null, onClick = {
+              if (GlobalSharedValue.animationDetail?.sources.isNullOrEmpty()) {
+                Toast.makeText(context, "暂无播放源", Toast.LENGTH_SHORT).show()
+                return@IconButton
+              }
+              Navigation.navigateToPlayer(id, subId!!, "", navController)
+            }) {
             Icon(
-              imageVector = Icons.Default.Favorite,
+              imageVector = Icons.Outlined.PlayArrow,
               tint = MaterialTheme.colorScheme.primary,
-              contentDescription = "love"
+              modifier = Modifier
+                .fillMaxSize()
+                .padding(0.dp),
+              contentDescription = "play"
             )
-          } else {
-            Icon(
-              imageVector = Icons.Default.FavoriteBorder,
-              contentDescription = "unlove"
-            )
+          }
+          IconButton(
+            enabled = metadata != null, onClick = {
+              love = !love;
+              updateHistory()
+              Toast.makeText(
+                context, if (love) "收藏成功" else "取消收藏", Toast.LENGTH_SHORT
+              ).show()
+            }) {
+            if (love) {
+              Icon(
+                imageVector = Icons.Default.Favorite,
+                tint = MaterialTheme.colorScheme.primary,
+                contentDescription = "love"
+              )
+            } else {
+              Icon(
+                imageVector = Icons.Default.FavoriteBorder,
+                contentDescription = "unlove"
+              )
+            }
           }
         }
       }
@@ -245,82 +260,14 @@ fun DetailPage(
         .fillMaxSize()
         .padding(innerPadding),
     ) {
-      metadata?.let {
+      if (mediaDetail != null || metadata != null) {
         HeaderRow(detail = metadata!!, baseHorizontalPadding = baseHorizontalPadding)
-        staffInfo?.let {
-          Column(
-            Modifier
-              .weight(1f)
-              .padding(top = baseHorizontalPadding)
-          ) {
-            PrimaryTabRow(selectedTabIndex = pagerState.currentPage) {
-              tabs.forEachIndexed { index, title ->
-                Tab(
-                  selectedContentColor = MaterialTheme.colorScheme.primary,
-                  unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                  text = { Text(title) },
-                  selected = pagerState.currentPage == index,
-                  onClick = { scope.launch { pagerState.animateScrollToPage(index) } })
-              }
-            }
-            HorizontalPager(
-              state = pagerState,
-              pageSpacing = baseHorizontalPadding,
-              contentPadding = PaddingValues(vertical = baseHorizontalPadding),
-              verticalAlignment = Alignment.Top
-            ) { pageIndex ->
-              when (pageIndex) {
-                0 -> ExpandableDescription(
-                  description = metadata?.media?.description ?: "暂无简介",
-                  baseHorizontalPadding = baseHorizontalPadding
-                )
-
-                1 -> StaffCard(
-                  title = tabs[pageIndex],
-                  list = staffInfo?.directors?.toList(),
-                  baseHorizontalPadding = baseHorizontalPadding
-                )
-
-                2 -> StaffCard(
-                  title = tabs[pageIndex],
-                  list = staffInfo?.actors?.toList(),
-                  baseHorizontalPadding = baseHorizontalPadding
-                )
-
-                3 -> StaffCard(
-                  title = tabs[pageIndex],
-                  list = staffInfo?.producers?.toList(),
-                  baseHorizontalPadding = baseHorizontalPadding
-                )
-
-                4 -> StaffCard(
-                  title = tabs[pageIndex],
-                  list = staffInfo?.writers?.toList(),
-                  baseHorizontalPadding = baseHorizontalPadding
-                )
-
-                5 -> StaffCard(
-                  title = tabs[pageIndex],
-                  list = staffInfo?.animators?.toList(),
-                  baseHorizontalPadding = baseHorizontalPadding
-                )
-              }
-            }
-          }
-        } ?: run {
-          Box(Modifier.fillMaxSize(), Alignment.Center) {
-            CircularProgressIndicator()
-          }
-        }
-      } ?: run {
-        Box(Modifier.fillMaxSize(), Alignment.Center) {
-          errMsg?.let {
-            EmptyCompose(it)
-          } ?: run {
-            CircularProgressIndicator()
-          }
-        }
       }
+      AnimationPart(metadata, staffInfo, baseHorizontalPadding, errMsg)
+      ChapterList(mediaDetail, 0, baseHorizontalPadding) {
+
+      }
+
     }
   }
 }
@@ -496,3 +443,136 @@ private fun StaffCard(
     }
   }
 }
+
+@Composable
+private fun AnimationPart(
+  metadata: Detail<Animation>?,
+  staffInfo: Staff?,
+  baseHorizontalPadding: Dp,
+  errMsg: String?
+) {
+  val tabs = arrayOf("简介", "导演", "演员", "制片", "编剧", "动画")
+  val pagerState = rememberPagerState(pageCount = { tabs.size })
+  val scope = rememberCoroutineScope()
+  metadata?.let {
+    staffInfo?.let {
+      Column(
+        Modifier
+          .fillMaxSize()
+          .padding(top = baseHorizontalPadding)
+      ) {
+        PrimaryTabRow(selectedTabIndex = pagerState.currentPage) {
+          tabs.forEachIndexed { index, title ->
+            Tab(
+              selectedContentColor = MaterialTheme.colorScheme.primary,
+              unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+              text = { Text(title) },
+              selected = pagerState.currentPage == index,
+              onClick = { scope.launch { pagerState.animateScrollToPage(index) } })
+          }
+        }
+        HorizontalPager(
+          state = pagerState,
+          pageSpacing = baseHorizontalPadding,
+          contentPadding = PaddingValues(vertical = baseHorizontalPadding),
+          verticalAlignment = Alignment.Top
+        ) { pageIndex ->
+          when (pageIndex) {
+            0 -> ExpandableDescription(
+              description = metadata.media?.description ?: "暂无简介",
+              baseHorizontalPadding = baseHorizontalPadding
+            )
+
+            1 -> StaffCard(
+              title = tabs[pageIndex],
+              list = staffInfo.directors?.toList(),
+              baseHorizontalPadding = baseHorizontalPadding
+            )
+
+            2 -> StaffCard(
+              title = tabs[pageIndex],
+              list = staffInfo.actors?.toList(),
+              baseHorizontalPadding = baseHorizontalPadding
+            )
+
+            3 -> StaffCard(
+              title = tabs[pageIndex],
+              list = staffInfo.producers?.toList(),
+              baseHorizontalPadding = baseHorizontalPadding
+            )
+
+            4 -> StaffCard(
+              title = tabs[pageIndex],
+              list = staffInfo.writers?.toList(),
+              baseHorizontalPadding = baseHorizontalPadding
+            )
+
+            5 -> StaffCard(
+              title = tabs[pageIndex],
+              list = staffInfo.animators?.toList(),
+              baseHorizontalPadding = baseHorizontalPadding
+            )
+          }
+        }
+      }
+    } ?: run {
+      Box(Modifier.fillMaxSize(), Alignment.Center) {
+        CircularProgressIndicator()
+      }
+    }
+  } ?: run {
+    Box(Modifier.fillMaxSize(), Alignment.Center) {
+      errMsg?.let {
+        EmptyCompose(it)
+      } ?: run {
+        CircularProgressIndicator()
+      }
+    }
+  }
+}
+
+@Composable
+private fun ChapterList(
+  mediaDetail: Detail<out Media>?,
+  comicIndex: Int,
+  baseHorizontalPadding: Dp,
+  onEpisodeClick: (Int) -> Unit
+) {
+  var reverse by rememberSaveable { mutableStateOf(false) }
+  var comicIndex by rememberSaveable { mutableStateOf(comicIndex) }
+  val listState = rememberLazyListState()
+  LaunchedEffect(mediaDetail, reverse) {
+    mediaDetail ?: return@LaunchedEffect
+    val total = mediaDetail.sources[0].episodes.size
+    val target = comicIndex.coerceIn(0, total - 1)
+    awaitFrame()
+    listState.scrollToItem(if (reverse) total - 1 - target else target)
+  }
+
+  mediaDetail?.let {
+
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+      Text(text = "章节列表", style = MaterialTheme.typography.titleMedium)
+      TextButton(onClick = { reverse = !reverse }) {
+        Text(if (reverse) "正序" else "倒序")
+      }
+    }
+    LazyColumn(
+      state = listState,
+      reverseLayout = reverse,
+      contentPadding = PaddingValues(vertical = baseHorizontalPadding),
+      verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+      itemsIndexed(it.sources[0].episodes) { index, episode ->
+        if (comicIndex == index) {
+          Button(onClick = { onEpisodeClick(index) }) { Text(episode.title) }
+        } else {
+          OutlinedButton(onClick = {
+            comicIndex = index; onEpisodeClick(index)
+          }) { Text(episode.title) }
+        }
+      }
+    }
+  } ?: run { EmptyCompose("暂无章节") }
+}
+

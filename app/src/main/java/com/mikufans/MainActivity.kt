@@ -38,6 +38,7 @@ import com.mikufans.entity.History
 import com.mikufans.ui.nav.BottomNavigationItem
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.ui.page.AboutPage
+import com.mikufans.ui.page.ComicPage
 import com.mikufans.ui.page.DetailPage
 import com.mikufans.ui.page.FullSearch
 import com.mikufans.ui.page.IndexPage
@@ -237,6 +238,10 @@ fun MainScreen(activity: ComponentActivity) {
       composable(route = Navigation.LOGIN + "/{email}") { navBackStackEntry ->
         val email = navBackStackEntry.arguments?.getString("email") ?: ""
         LoginPage(navController, baseHorizontalPadding, email)
+      }
+      composable(route = Navigation.TYPE_COMIC + "/{id}") { navBackStackEntry ->
+        val id = navBackStackEntry.arguments?.getString("id") ?: ""
+        ComicPage(id, navController, baseHorizontalPadding)
       }
     }
   }
