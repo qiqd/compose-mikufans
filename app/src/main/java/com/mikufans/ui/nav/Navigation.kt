@@ -22,13 +22,15 @@ object Navigation {
 
   fun navigateToDetail(
     id: String,
+    subId: String,
     title: String,
     type: String = TYPE_ANIMATION,
     navController: NavController,
   ) {
     val enCodeId = URLEncoder.encode(id, "UTF-8")
+    val enCodeSubId = URLEncoder.encode(subId, "UTF-8")
     val enCodeTitle = URLEncoder.encode(title, "UTF-8")
-    navController.navigate("$DETAIL/$type/$enCodeId/$enCodeTitle") {
+    navController.navigate("$DETAIL/$type/$enCodeId/$enCodeSubId/$enCodeTitle") {
       launchSingleTop = true
       restoreState = true
     }

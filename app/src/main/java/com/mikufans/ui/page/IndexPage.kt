@@ -84,7 +84,6 @@ import org.anime.entity.base.Media
 import org.anime.entity.comic.Comic
 import org.anime.entity.meta.SourceWithDelay
 import org.anime.entity.novel.Novel
-import org.anime.parser.HtmlParser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,7 +117,7 @@ fun IndexPage(
     AnimationService.fetchSearchSync(k) {
       msg = it.message.toString()
       Log.e("IndexPage-Search", "动画搜索失败", it)
-    }.takeIf { it.isNotEmpty() }?.let { animationResult = it }
+    }.takeIf { it.isNotEmpty() }?.let { animationResult = it.filterIsInstance<Animation>() }
     loadingAnimation = false
   }
   val fetchComic: suspend (k: String) -> Unit = { k ->
@@ -129,8 +128,7 @@ fun IndexPage(
     }.takeIf {
       it.isNotEmpty()
     }?.let {
-      Log.e("IndexPage-Search", "漫画搜索成功:${it}")
-      comicResult = it
+      comicResult = it.filterIsInstance<Comic>()
     }
     loadingComic = false
   }
@@ -139,15 +137,20 @@ fun IndexPage(
     NovelService.fetchSearchSync(k) {
       msg = "轻小说搜索失败"
       Log.e("IndexPage-Search", "轻小说搜索失败", it)
-    }.takeIf { it.isNotEmpty() }?.let { novelResult = it }
+    }.takeIf { it.isNotEmpty() }?.let { novelResult = it.filterIsInstance<Novel>() }
     loadingNovel = false
   }
   val fetchSearch: (keyword: String) -> Unit = { k ->
-    coroutineScope.launch {
-      fetchAnimation(k)
-      fetchComic(k)
-      fetchNovel(k)
+    if (!isInit) {
+      coroutineScope.launch {
+        fetchAnimation(k)
+        fetchComic(k)
+        fetchNovel(k)
+      }
+    } else {
+      msg = "初始化资源中..."
     }
+
   }
   val refreshSource: () -> Unit = {
     coroutineScope.launch(Dispatchers.IO) {
@@ -161,12 +164,12 @@ fun IndexPage(
         isRefreshing = false
         return@launch
       }
-      lastRefreshTime = currentTime
       try {
         isRefreshing = true
         AnimationApi.initialization()
         ComicApi.initialization()
         NovelApi.initialization()
+        lastRefreshTime = currentTime
         delay(2000L)
       } catch (e: Exception) {
         Log.e("IndexPage-Refresh", "刷新失败", e)
@@ -352,7 +355,7 @@ fun IndexPage(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SourcePage(source: List<SourceWithDelay<out HtmlParser>>, sheetState: SheetState) {
+fun SourcePage(source: List<SourceWithDelay>, sheetState: SheetState) {
   val coroutineScope = rememberCoroutineScope()
   LazyColumn {
     itemsIndexed(
@@ -407,7 +410,7 @@ fun AnimationPage(
           airDate = it[index].releaseDate,
           onTap = { id ->
             Navigation.navigateToDetail(
-              id = id, title = it[index].titleCn, navController = navController
+              id = id, title = it[index].titleCn, subId = "", navController = navController
             )
           })
       }
@@ -434,9 +437,12 @@ fun ComicPage(comics: List<Comic>, navController: NavController) {
           ratingCount = it[index].ratingCount,
           genre = it[index].genre,
           airDate = it[index].releaseDate,
+          author = it[index].author,
+          mediaType = Navigation.TYPE_COMIC,
           onTap = { id ->
             Navigation.navigateToDetail(
-              id = id, title = it[index].titleCn, navController = navController
+              type = Navigation.TYPE_COMIC,
+              id = id, title = it[index].titleCn, subId = "", navController = navController
             )
           })
       }

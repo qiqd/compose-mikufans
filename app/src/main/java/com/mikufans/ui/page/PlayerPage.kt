@@ -3,7 +3,6 @@ package com.mikufans.ui.page
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
@@ -45,10 +43,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -62,18 +58,19 @@ import com.mikufans.api.AnimationService
 import com.mikufans.entity.History
 import com.mikufans.ui.component.CapVideoPlayer
 import com.mikufans.ui.component.EmptyCompose
+import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.GifLoader
 import com.mikufans.util.GlobalSharedValue
 import com.mikufans.util.LocalStorage
 import com.mikufans.view.CapVideoPlayerViewModel
 import kotlinx.coroutines.launch
 import org.anime.entity.animation.Animation
+import org.anime.entity.base.Media
 import org.anime.entity.base.Source
 import org.anime.entity.base.ViewInfo
 import java.util.Locale
 
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaybackPage(
   id: String,
@@ -83,7 +80,7 @@ fun PlaybackPage(
   baseHorizontalPadding: Dp,
 ) {
   val content = LocalContext.current
-  val view = LocalView.current
+//  val view = LocalView.current
   val tabs = arrayOf("简介", "剧集")
   var isLove by rememberSaveable { mutableStateOf(false) }
   var currentPosition by rememberSaveable { mutableLongStateOf(0L) }
@@ -91,16 +88,15 @@ fun PlaybackPage(
   val pagerState = rememberPagerState(pageCount = { tabs.size })
   val tabIndex = remember { derivedStateOf { pagerState.currentPage } }
   val coroutineScope = rememberCoroutineScope()
-  var isFullscreen by remember { mutableStateOf(false) }
   var localHistory by rememberSaveable { mutableStateOf<List<History>>(emptyList()) }
   var viewInfo by rememberSaveable { mutableStateOf<ViewInfo?>(null) }
   var episodeIndex by rememberSaveable { mutableIntStateOf(0) }
   var historyIndex by rememberSaveable { mutableIntStateOf(-1) }
   var sourceIndex by rememberSaveable { mutableIntStateOf(0) }
   var errorMsg by rememberSaveable { mutableStateOf("") }
-  val detail = GlobalSharedValue.animationDetail
+  val detail = GlobalSharedValue.mediaDetail
   val capViewModel: CapVideoPlayerViewModel = viewModel()
-  var tempId by rememberSaveable { mutableStateOf<String?>(null) }
+//  var tempId by rememberSaveable { mutableStateOf<String?>(null) }
   val exoPlayer = capViewModel.getPlayer(context = content) {
     isLoading = false
     errorMsg = it.message ?: "播放错误"
@@ -114,7 +110,8 @@ fun PlaybackPage(
   val loadLocalHistory: () -> Unit = {
     LocalStorage.getList(content, "view:history", History::class.java)?.toMutableList()
       ?.let { localHistory = it }
-    historyIndex = localHistory.indexOfFirst { it.subId == subId }
+    historyIndex =
+      localHistory.indexOfFirst { it.subId == subId && it.mediaType == Navigation.TYPE_ANIMATION }
     if (historyIndex >= 0) {
       episodeIndex = localHistory[historyIndex].episodeIndex ?: 0
       currentPosition = localHistory[historyIndex].position ?: 0L
@@ -184,18 +181,10 @@ fun PlaybackPage(
   /**
    * Scaffold 布局
    */
-  Scaffold(
-    modifier = Modifier.also {
-      if (isFullscreen) {
-        Modifier.background(Color.Black)
-      }
-    }) { innerPadding ->
+  Scaffold { innerPadding ->
     Column(
-      modifier = Modifier.padding(innerPadding).also {
-        if (isFullscreen) {
-          Modifier.background(Color.Black)
-        }
-      }) {
+      modifier = Modifier.padding(innerPadding)
+    ) {
       Row(
         modifier = Modifier.fillMaxWidth()
       ) {
@@ -207,7 +196,6 @@ fun PlaybackPage(
           showPreviousButton = false,
           navController = navController,
           onEpisodeTab = {},
-          onLandscapeChange = { isFullscreen = it },
           onPlayerError = {
             errorMsg = it.message.toString()
             Toast.makeText(content, it.message, Toast.LENGTH_SHORT).show()
@@ -259,7 +247,7 @@ fun PlaybackPage(
 /* ====================== 简介页 ====================== */
 @Composable
 fun AnimeInfoPage(
-  animation: Animation?,
+  animation: Media?,
   errorMsg: String,
   isLove: Boolean = false,
   baseHorizontalPadding: Dp,
@@ -293,12 +281,14 @@ fun AnimeInfoPage(
               style = MaterialTheme.typography.titleLarge,
               fontWeight = FontWeight.Bold
             )
-            anime.ariDate?.let {
-              Text(
-                text = it,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 8.dp)
-              )
+            if (anime is Animation) {
+              anime.ariDate?.let {
+                Text(
+                  text = it,
+                  style = MaterialTheme.typography.bodyMedium,
+                  modifier = Modifier.padding(top = 8.dp)
+                )
+              }
             }
             anime.rating?.let {
               Text(
@@ -307,12 +297,14 @@ fun AnimeInfoPage(
                 modifier = Modifier.padding(top = 4.dp)
               )
             }
-            anime.totalEpisode?.let {
-              Text(
-                text = "集数: $it",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 4.dp)
-              )
+            if (anime is Animation) {
+              anime.totalEpisode?.let {
+                Text(
+                  text = "集数: $it",
+                  style = MaterialTheme.typography.bodyMedium,
+                  modifier = Modifier.padding(top = 4.dp)
+                )
+              }
             }
             Spacer(Modifier.weight(1f))
             AnimatedContent(targetState = isLove, label = "loveToggle") { love ->
@@ -442,7 +434,7 @@ fun EpisodePage(
   onEpisodeChange: (sourceIndex: Int, episodeIndex: Int) -> Unit
 ) {
   val episodes = source.episodes
-  var index by rememberSaveable { mutableStateOf(episodeIndex) }
+  var index by rememberSaveable { mutableIntStateOf(episodeIndex) }
   if (episodes.isNotEmpty()) {
     episodes.let { episodeList ->
       LazyVerticalGrid(
@@ -454,7 +446,7 @@ fun EpisodePage(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
       ) {
-        itemsIndexed(episodeList) { i, episode ->
+        itemsIndexed(episodeList) { i, _ ->
           if (index == i && historySourceIndex == sourceIndex) {
             Button(
               onClick = {}, modifier = Modifier.fillMaxWidth()

@@ -4,17 +4,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.anime.api.ComicApi
 import org.anime.entity.base.Detail
+import org.anime.entity.base.Media
 import org.anime.entity.base.ViewInfo
-import org.anime.entity.comic.Comic
-import org.anime.parser.AbstractComicParser
+import org.anime.parser.HtmlParser
 
 object ComicService {
 
-  var comicApi: AbstractComicParser = ComicApi.SOURCES_WITH_DELAY[0].htmlParser
+  var comicApi: HtmlParser = ComicApi.SOURCES_WITH_DELAY[0].htmlParser
 
   suspend fun fetchSearchSync(
     keyword: String, exceptionHandler: (Exception) -> Unit
-  ): List<Comic> {
+  ): List<Media> {
     comicApi = ComicApi.SOURCES_WITH_DELAY[0].htmlParser
     return withContext(Dispatchers.IO) {
       comicApi.fetchSearchSync(keyword, 1, 10) {
@@ -25,7 +25,7 @@ object ComicService {
 
   suspend fun fetchDetailSync(
     mediaId: String, exceptionHandler: (Exception) -> Unit
-  ): Detail<Comic>? {
+  ): Detail? {
     comicApi = ComicApi.SOURCES_WITH_DELAY[0].htmlParser
     return withContext(Dispatchers.IO) {
       comicApi.fetchDetailSync(mediaId) {
@@ -35,7 +35,7 @@ object ComicService {
   }
 
   suspend fun fetchViewSync(
-    episodeId: String, exceptionHandler: (Exception) -> Unit
+    episodeId: String?, exceptionHandler: (Exception) -> Unit
   ): ViewInfo? {
     comicApi = ComicApi.SOURCES_WITH_DELAY[0].htmlParser
     return withContext(Dispatchers.IO) {

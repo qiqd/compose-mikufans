@@ -34,7 +34,7 @@ fun MinePage(
   activity: ComponentActivity,
   baseHorizontalPadding: Dp,
 ) {
-  val userEmail = LocalStorage.get(navController.context, "email", String::class.java) ?: ""
+  val userEmail = LocalStorage.getString(navController.context, "email")
   BackHandler { activity.moveTaskToBack(true) }
   Scaffold(
     modifier = Modifier.padding(horizontal = baseHorizontalPadding),

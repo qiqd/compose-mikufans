@@ -204,14 +204,17 @@ fun MainScreen(activity: ComponentActivity) {
           baseHorizontalPadding,
         )
       }
-      composable(Navigation.DETAIL + "/{type}/{id}/{title}") { backStackEntry ->
+      composable(Navigation.DETAIL + "/{type}/{id}/{subId}/{title}") { backStackEntry ->
         var id = backStackEntry.arguments?.getString("id") ?: "0"
+        var subId = backStackEntry.arguments?.getString("subId") ?: ""
         val type = backStackEntry.arguments?.getString("type") ?: Navigation.TYPE_ANIMATION
         id = URLDecoder.decode(id, "UTF-8")
+        subId = URLDecoder.decode(subId, "UTF-8")
         var title = backStackEntry.arguments?.getString("title") ?: ""
         title = URLDecoder.decode(title, "UTF-8")
         DetailPage(
           id = id,
+          subId = subId,
           type = type,
           title = title,
           navController = navController,

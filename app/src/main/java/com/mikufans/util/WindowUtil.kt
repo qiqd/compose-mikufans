@@ -4,8 +4,11 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import android.view.Window
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
-object Orientation {
+object WindowUtil {
   /**
    * 强制设置屏幕方向
    * @param context 任意 Context
@@ -25,5 +28,19 @@ object Orientation {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+  }
+
+  fun hideSystemBar(window: Window, hide: Boolean) {
+    val insetsController = WindowInsetsControllerCompat(window, window.decorView)
+    if (!hide) {
+      // 退出沉浸：显示状态栏+导航栏
+      insetsController.show(WindowInsetsCompat.Type.systemBars())
+      insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+    } else {
+      // 沉浸：隐藏状态栏+导航栏
+      insetsController.hide(WindowInsetsCompat.Type.systemBars())
+      insetsController.systemBarsBehavior =
+        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    }
   }
 }

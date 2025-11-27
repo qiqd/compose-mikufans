@@ -3,9 +3,9 @@ package com.mikufans.api
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.anime.entity.animation.Animation
 import org.anime.entity.animation.Staff
 import org.anime.entity.base.Detail
+import org.anime.entity.base.Media
 import org.anime.meta.impl.Bangumi
 import org.anime.parser.impl.meta.Douban
 
@@ -15,7 +15,7 @@ object MetaService {
 
   suspend fun fetchSearchSync(
     keyword: String, exceptionHandler: (Exception) -> Unit
-  ): List<Animation> {
+  ): List<Media> {
     return withContext(Dispatchers.IO) {
       douban.fetchSearchSync(keyword, 1, 10) {
         Log.e("MetaService", "fetchSearchSync: $it")
@@ -26,7 +26,7 @@ object MetaService {
 
   suspend fun fetchDetailSync(
     mediaId: String, exceptionHandler: (Exception) -> Unit
-  ): Detail<Animation>? {
+  ): Detail? {
     Thread.sleep(500L)
     return withContext(Dispatchers.IO) {
       douban.fetchDetailSync(mediaId) {

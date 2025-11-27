@@ -146,7 +146,7 @@ fun WeeklyPageContent(weekDay: List<Animation>?, navController: NavController) {
             genre = item.genre,
             onTap = { _ ->
               Navigation.navigateToDetail(
-                navController = navController, id = "", title = item.titleCn ?: ""
+                navController = navController, id = "", subId = "", title = item.titleCn ?: ""
               )
             })
         }

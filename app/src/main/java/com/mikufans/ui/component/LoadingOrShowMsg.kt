@@ -3,7 +3,7 @@ package com.mikufans.ui.component
 import androidx.compose.runtime.Composable
 
 @Composable
-fun LoadingOrMsg(
+fun LoadingOrShowMsg(
   errMsg: String?,
 ) {
   if (errMsg.isNullOrEmpty()) {

@@ -90,8 +90,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -100,8 +98,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
-import com.mikufans.util.Orientation
 import com.mikufans.util.RelativeTime.formatTime
+import com.mikufans.util.WindowUtil
 import com.mikufans.view.CapVideoPlayerViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -179,21 +177,11 @@ fun CapVideoPlayer(
     isLandscape = false
     onLeadingBackButtonTab()
     onLandscapeChange(isLandscape)
-    Orientation.forceOrientation(current, false)
+    WindowUtil.forceOrientation(current, false)
   }
   // 同步系统栏隐藏/显示
   LaunchedEffect(isLandscape) {
-    val insetsController = WindowInsetsControllerCompat(window, window.decorView)
-    if (!isLandscape) {
-      // 退出沉浸：显示状态栏+导航栏
-      insetsController.show(WindowInsetsCompat.Type.systemBars())
-      insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
-    } else {
-      // 沉浸：隐藏状态栏+导航栏
-      insetsController.hide(WindowInsetsCompat.Type.systemBars())
-      insetsController.systemBarsBehavior =
-        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-    }
+    WindowUtil.hideSystemBar(window, isLandscape)
   }
 // 显示/隐藏控制栏 （播放时自动隐藏，5秒无操作后显示）
   LaunchedEffect(isPlaying, showVideoController) {
@@ -299,7 +287,7 @@ fun CapVideoPlayer(
               IconButton(onClick = {
                 if (isLandscape) {
                   isLandscape = false
-                  Orientation.forceOrientation(current, false)
+                  WindowUtil.forceOrientation(current, false)
                 } else {
                   navController.popBackStack()
                 }
@@ -706,7 +694,7 @@ fun CapVideoPlayer(
             IconButton(onClick = {
               isLandscape = !isLandscape
               onLandscapeChange(isLandscape)
-              Orientation.forceOrientation(current, isLandscape)
+              WindowUtil.forceOrientation(current, isLandscape)
             }) {
               Icon(
                 imageVector = Icons.Filled.Fullscreen, contentDescription = "Fullscreen"

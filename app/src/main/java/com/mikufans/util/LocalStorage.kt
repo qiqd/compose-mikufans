@@ -22,10 +22,18 @@ object LocalStorage {
       }
   }
 
-  fun <T> get(context: Context, key: String, clazz: Class<T>): T? =
+  fun getString(context: Context, key: String): String =
     context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-      .getString(key, null)
-      ?.let { JSON.parseObject(it, clazz) }
+      .getString(key, "") ?: ""
+
+  fun getInt(context: Context, key: String, exceptionHandler: (Exception) -> Unit = {}): Int =
+    try {
+      context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        .getInt(key, 0)
+    } catch (e: Exception) {
+      exceptionHandler(e)
+      0
+    }
 
   fun <T> getList(context: Context, key: String, clazz: Class<T>): List<T>? =
     context.getSharedPreferences(FILE, Context.MODE_PRIVATE)

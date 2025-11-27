@@ -57,9 +57,11 @@ fun MediaCard(
   status: String? = null,
   genre: String? = null,
   rating: String? = null,
+  mediaType: String? = null,
   ratingCount: String? = null,
   duration: String? = null,
   totalEpisode: String? = null,
+  chapterName: String? = null,
   language: String? = null,
   isLove: Boolean = false,
   airDate: String? = null,
@@ -109,14 +111,17 @@ fun MediaCard(
         overflow = TextOverflow.Ellipsis,
         fontSize = MaterialTheme.typography.bodyMedium.fontSize
       )
-      Text(
-        text = title ?: "暂无其他标题",
-        textAlign = TextAlign.Start,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        color = Color.Gray,
-        fontSize = MaterialTheme.typography.bodySmall.fontSize
-      )
+      title?.let {
+        Text(
+          text = title,
+          textAlign = TextAlign.Start,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+          color = Color.Gray,
+          fontSize = MaterialTheme.typography.bodySmall.fontSize
+        )
+      }
+
       rating?.let {
         Text(
           text = "$rating 分/$ratingCount 人评分",
@@ -163,6 +168,16 @@ fun MediaCard(
             overflow = TextOverflow.Ellipsis
           )
         }
+        mediaType?.let {
+          Text(
+            color = Color.Gray,
+            text = mediaType,
+            fontSize = MaterialTheme.typography.bodySmall.fontSize,
+            textAlign = TextAlign.Start,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+        }
       }
       Spacer(modifier = Modifier.weight(1f))
       Column(
@@ -172,6 +187,15 @@ fun MediaCard(
         lastViewAt?.let {
           Text(
             text = RelativeTime.relativeTime(lastViewAt),
+            fontSize = MaterialTheme.typography.bodySmall.fontSize,
+            textAlign = TextAlign.Start,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+        }
+        chapterName?.let {
+          Text(
+            text = "观看至$chapterName",
             fontSize = MaterialTheme.typography.bodySmall.fontSize,
             textAlign = TextAlign.Start,
             maxLines = 1,

@@ -1,5 +1,6 @@
 package com.mikufans.ui.page
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,6 +59,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -69,6 +71,7 @@ import com.mikufans.api.ComicService
 import com.mikufans.api.MetaService
 import com.mikufans.entity.History
 import com.mikufans.ui.component.EmptyCompose
+import com.mikufans.ui.component.LoadingOrShowMsg
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.GifLoader
 import com.mikufans.util.GlobalSharedValue
@@ -79,126 +82,135 @@ import kotlinx.coroutines.launch
 import org.anime.entity.animation.Animation
 import org.anime.entity.animation.Staff
 import org.anime.entity.base.Detail
-import org.anime.entity.base.Media
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailPage(
-  id: String, title: String, type: String, navController: NavController, baseHorizontalPadding: Dp
+  id: String,
+  subId: String,
+  title: String,
+  type: String,
+  navController: NavController,
+  baseHorizontalPadding: Dp
 ) {
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
-  var metadata by rememberSaveable { mutableStateOf<Detail<Animation>?>(null) }
   var staffInfo by rememberSaveable { mutableStateOf<Staff?>(null) }
-  var subId by rememberSaveable { mutableStateOf<String?>(null) }
+  var subId by rememberSaveable { mutableStateOf(subId) }
   var id by rememberSaveable { mutableStateOf(id) }
   var love by rememberSaveable { mutableStateOf(false) }
+  var loadingMetaData by rememberSaveable { mutableStateOf(false) }
   var localHistory by rememberSaveable { mutableStateOf<List<History>>(mutableListOf()) }
   var errMsg by rememberSaveable { mutableStateOf<String?>(null) }
-  var mediaDetail by rememberSaveable { mutableStateOf<Detail<out Media>?>(null) }
-  var comicIndex by rememberSaveable { mutableIntStateOf(0) }
+  var mediaDetail by rememberSaveable { mutableStateOf<Detail?>(null) }
+  var chapterIndex by rememberSaveable { mutableIntStateOf(0) }
+  var historyIndex by rememberSaveable { mutableIntStateOf(-1) }
   val loadLocalHistory: () -> Unit = {
-    LocalStorage.getList(context, "view:history", History::class.java)?.toMutableList()
-      ?.let { localHistory = it }
-    localHistory.indexOfFirst { it.subId == subId }.takeIf { it >= 0 }?.let {
-      love = true
+    LocalStorage.getList(context, "view:history", History::class.java)?.let { histories ->
+      localHistory = histories
+      historyIndex = if (id.isNotBlank()) {
+        histories.indexOfFirst { it.id == id }
+      } else {
+        histories.indexOfFirst { it.subId == subId }
+      }
+      if (historyIndex >= 0) {
+        chapterIndex = histories[historyIndex].episodeIndex ?: 0
+        love = histories[historyIndex].isLove
+      }
     }
   }
   val updateHistory: () -> Unit = {
-    localHistory.indexOfFirst { it.subId == subId && it.isLove }.takeIf { it >= 0 }?.let { index ->
-      localHistory[index].apply {
-        isLove = love
+    val history = History(
+      id = mediaDetail?.media?.id,
+      subId = subId,
+      name = mediaDetail?.media?.title,
+      nameCn = mediaDetail?.media?.titleCn,
+      mediaType = type,
+      isLove = love,
+      chapterName = mediaDetail?.sources[0]?.episodes?.get(chapterIndex)?.title,
+      cover = mediaDetail?.media?.coverUrls[0]
+    ).apply {
+      if (type == Navigation.TYPE_COMIC) {
+        episodeIndex = chapterIndex
       }
-      subId = localHistory[index].subId
     }
-    localHistory.indexOfFirst { it.subId == subId }.takeIf { it < 0 }?.let {
-      val animation = metadata?.media
-      val history = History(
-        id = id,
-        subId = subId,
-        name = animation?.title,
-        nameCn = animation?.titleCn,
-        cover = animation?.coverUrls[0],
-        episodeIndex = 0,
-        position = 0L,
-        isLove = love,
-        sourceIndex = 0,
-        time = System.currentTimeMillis(),
-      )
-      localHistory = localHistory.toMutableList().apply { add(history) }
-    }
+    localHistory = localHistory.toMutableList()
+      .apply { add(history) }
+      .groupBy { it.id }
+      .map { (_, value) -> value.maxBy { it.time } }
+      .sortedByDescending { it.time }
     LocalStorage.setList(context, "view:history", localHistory)
   }
-  val loadMetadata: () -> Unit = {
-    scope.launch {
-      if (subId.isNullOrBlank()) {
-        MetaService.fetchSearchSync(title) {
-          scope.launch {
-            Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show(); errMsg = it.message
-          }
-        }.takeIf { it.isNotEmpty() }?.let { subId = it.first().subId }
-      }
-      subId?.let {
-        MetaService.fetchDetailSync(subId!!) {
-          scope.launch {
-            Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show(); errMsg = it.message
-          }
-        }?.let { metadata = it }
-        MetaService.fetchStaffSync(subId!!) {
-          scope.launch {
-            Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show(); errMsg = it.message
-          }
-        }?.let { staffInfo = it }
-        localHistory.indexOfFirst { it.subId == subId }.takeIf { it >= 0 }?.let {
-          love = true
+  val loadMetadata: suspend () -> Unit = {
+    loadingMetaData = true
+    if (subId.isBlank()) {
+      MetaService.fetchSearchSync(title) {
+        errMsg = it.message
+      }.takeIf { it.isNotEmpty() }?.let {
+        val media = it[0]
+        if (media is Animation) {
+          subId = media.subId
         }
-        loadLocalHistory()
       }
-
     }
+    subId.takeIf { it.isNotBlank() }?.let {
+      MetaService.fetchDetailSync(subId) {
+        errMsg = it.message
+      }?.let {
+        mediaDetail?.media = it.media
+        GlobalSharedValue.mediaDetail?.media = it.media
+      }
+      MetaService.fetchStaffSync(subId) {
+        errMsg = it.message
+      }?.let { staffInfo = it }
+      localHistory.indexOfFirst { it.subId == subId }.takeIf { it >= 0 }?.let {
+        love = true
+      }
+    }
+    loadingMetaData = false
+
   }
-  val fetchDetail: () -> Unit = {
-    scope.launch {
-      when (type) {
-        Navigation.TYPE_ANIMATION -> {
-          loadMetadata()
-          if (id.isBlank()) {
-            AnimationService.fetchSearchSync(title) {
-              scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
-            }.let { animations ->
-              val associateBy = animations.associateBy { it.titleCn }
-              val best =
-                StringMatchUtil.findBestMatchWithJaroWinkler(animations.map { it.titleCn }, title)
-              associateBy[best]?.let { id = it.id }
-            }
-          }
-          AnimationService.fetchDetailSync(id) {
+  val fetchDetail: suspend () -> Unit = {
+    when (type) {
+      Navigation.TYPE_ANIMATION -> {
+        loadMetadata()
+        if (id.isBlank()) {
+          AnimationService.fetchSearchSync(title) {
             scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
-          }?.let { item ->
-            GlobalSharedValue.animationDetail = item
-            GlobalSharedValue.animationDetail?.media = metadata?.media
+          }.let { animations ->
+            val associateBy = animations.associateBy { it.titleCn }
+            val best =
+              StringMatchUtil.findBestMatchWithJaroWinkler(animations.map { it.titleCn }, title)
+            associateBy[best]?.let { id = it.id }
           }
         }
-
-        Navigation.TYPE_COMIC -> {
-          ComicService.fetchDetailSync(id) {
-            errMsg = it.message.toString()
-          }?.let { mediaDetail = it; GlobalSharedValue.comicDetail = it }
+        AnimationService.fetchDetailSync(id) {
+          scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
+        }?.let { item ->
+          GlobalSharedValue.mediaDetail = item
         }
+      }
 
-        else -> {
+      Navigation.TYPE_COMIC -> {
+        ComicService.fetchDetailSync(id) {
+          errMsg = it.message.toString()
+        }?.let { mediaDetail = it; GlobalSharedValue.mediaDetail = it }
+      }
+
+      else -> {
 //todo novel case
-        }
       }
     }
   }
 
   LaunchedEffect(Unit) {
-    if (metadata != null) return@LaunchedEffect
-    fetchDetail()
-  }
-  LaunchedEffect(metadata) {
-    GlobalSharedValue.animationDetail?.media = metadata?.media
+    if (mediaDetail != null) return@LaunchedEffect
+    scope.launch {
+      fetchDetail()
+      if (type == Navigation.TYPE_ANIMATION) loadMetadata()
+      loadLocalHistory()
+    }
+
   }
 
   Scaffold(
@@ -211,15 +223,15 @@ fun DetailPage(
         }
       })
     }, floatingActionButton = {
-      if (type == Navigation.TYPE_ANIMATION) {
-        Column {
+      Column {
+        if (type == Navigation.TYPE_ANIMATION) {
           IconButton(
-            enabled = metadata != null, onClick = {
-              if (GlobalSharedValue.animationDetail?.sources.isNullOrEmpty()) {
+            enabled = !loadingMetaData, onClick = {
+              if (GlobalSharedValue.mediaDetail?.sources.isNullOrEmpty()) {
                 Toast.makeText(context, "暂无播放源", Toast.LENGTH_SHORT).show()
                 return@IconButton
               }
-              Navigation.navigateToPlayer(id, subId!!, "", navController)
+              Navigation.navigateToPlayer(id, subId, "", navController)
             }) {
             Icon(
               imageVector = Icons.Outlined.PlayArrow,
@@ -230,28 +242,29 @@ fun DetailPage(
               contentDescription = "play"
             )
           }
-          IconButton(
-            enabled = metadata != null, onClick = {
-              love = !love;
-              updateHistory()
-              Toast.makeText(
-                context, if (love) "收藏成功" else "取消收藏", Toast.LENGTH_SHORT
-              ).show()
-            }) {
-            if (love) {
-              Icon(
-                imageVector = Icons.Default.Favorite,
-                tint = MaterialTheme.colorScheme.primary,
-                contentDescription = "love"
-              )
-            } else {
-              Icon(
-                imageVector = Icons.Default.FavoriteBorder,
-                contentDescription = "unlove"
-              )
-            }
+        }
+        IconButton(
+          enabled = !loadingMetaData, onClick = {
+            love = !love;
+            updateHistory()
+            Toast.makeText(
+              context, if (love) "收藏成功" else "取消收藏", Toast.LENGTH_SHORT
+            ).show()
+          }) {
+          if (love) {
+            Icon(
+              imageVector = Icons.Default.Favorite,
+              tint = MaterialTheme.colorScheme.primary,
+              contentDescription = "love"
+            )
+          } else {
+            Icon(
+              imageVector = Icons.Default.FavoriteBorder,
+              contentDescription = "unlove"
+            )
           }
         }
+
       }
     }, floatingActionButtonPosition = FabPosition.End
   ) { innerPadding ->
@@ -260,14 +273,24 @@ fun DetailPage(
         .fillMaxSize()
         .padding(innerPadding),
     ) {
-      if (mediaDetail != null || metadata != null) {
-        HeaderRow(detail = metadata!!, baseHorizontalPadding = baseHorizontalPadding)
+      if (mediaDetail != null) {
+        HeaderRow(detail = mediaDetail!!, baseHorizontalPadding = baseHorizontalPadding)
       }
-      AnimationPart(metadata, staffInfo, baseHorizontalPadding, errMsg)
-      ChapterList(mediaDetail, 0, baseHorizontalPadding) {
+      when (type) {
+        Navigation.TYPE_ANIMATION -> {
+          AnimationPart(mediaDetail, staffInfo, baseHorizontalPadding, errMsg)
+        }
 
+        Navigation.TYPE_COMIC -> {
+          ChapterList(mediaDetail, chapterIndex, errMsg, baseHorizontalPadding) {
+            Navigation.navigateToComic(it.toString(), navController)
+          }
+        }
+
+        else -> {
+          EmptyCompose()
+        }
       }
-
     }
   }
 }
@@ -276,7 +299,7 @@ fun DetailPage(
  * 详情页头部
  */
 @Composable
-private fun HeaderRow(detail: Detail<out Media>, baseHorizontalPadding: Dp, love: Boolean = false) {
+private fun HeaderRow(detail: Detail, baseHorizontalPadding: Dp, love: Boolean = false) {
   Row(
     modifier = Modifier
       .fillMaxWidth()
@@ -337,6 +360,11 @@ private fun HeaderRow(detail: Detail<out Media>, baseHorizontalPadding: Dp, love
           text = "${media.rating} 分 / ${media.ratingCount} 人评分",
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.primary
+        )
+      }
+      media.status?.let {
+        Text(
+          text = it, style = MaterialTheme.typography.bodySmall, color = Color.Gray
         )
       }
       Spacer(Modifier.weight(1f))
@@ -446,7 +474,7 @@ private fun StaffCard(
 
 @Composable
 private fun AnimationPart(
-  metadata: Detail<Animation>?,
+  metadata: Detail?,
   staffInfo: Staff?,
   baseHorizontalPadding: Dp,
   errMsg: String?
@@ -533,14 +561,17 @@ private fun AnimationPart(
 
 @Composable
 private fun ChapterList(
-  mediaDetail: Detail<out Media>?,
-  comicIndex: Int,
+  mediaDetail: Detail?,
+  chapterIndex: Int,
+  errMsg: String?,
   baseHorizontalPadding: Dp,
   onEpisodeClick: (Int) -> Unit
 ) {
   var reverse by rememberSaveable { mutableStateOf(false) }
-  var comicIndex by rememberSaveable { mutableStateOf(comicIndex) }
-  val listState = rememberLazyListState()
+  var comicIndex by rememberSaveable { mutableIntStateOf(chapterIndex) }
+  val listState = rememberLazyListState(initialFirstVisibleItemIndex = chapterIndex)
+  Log.e("DetailPage", "ChapterList: $chapterIndex")
+  val coroutineScope = rememberCoroutineScope()
   LaunchedEffect(mediaDetail, reverse) {
     mediaDetail ?: return@LaunchedEffect
     val total = mediaDetail.sources[0].episodes.size
@@ -548,13 +579,26 @@ private fun ChapterList(
     awaitFrame()
     listState.scrollToItem(if (reverse) total - 1 - target else target)
   }
-
+  LaunchedEffect(chapterIndex) {
+    if (chapterIndex == 0) {
+      return@LaunchedEffect
+    }
+    awaitFrame()
+    comicIndex = chapterIndex
+    listState.animateScrollToItem(chapterIndex)
+  }
   mediaDetail?.let {
-
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(
+      Modifier.fillMaxWidth(),
+      verticalAlignment = Alignment.CenterVertically
+    ) {
       Text(text = "章节列表", style = MaterialTheme.typography.titleMedium)
+      Spacer(Modifier.weight(1f))
+      TextButton(onClick = { coroutineScope.launch { listState.animateScrollToItem(0) } }) {
+        Text(text = "回到顶部")
+      }
       TextButton(onClick = { reverse = !reverse }) {
-        Text(if (reverse) "正序" else "倒序")
+        Text(text = if (reverse) "正序" else "倒序")
       }
     }
     LazyColumn(
@@ -565,14 +609,23 @@ private fun ChapterList(
     ) {
       itemsIndexed(it.sources[0].episodes) { index, episode ->
         if (comicIndex == index) {
-          Button(onClick = { onEpisodeClick(index) }) { Text(episode.title) }
+          Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { onEpisodeClick(index) }) {
+            Text(
+              episode.title,
+              textAlign = TextAlign.Start
+            )
+          }
         } else {
-          OutlinedButton(onClick = {
-            comicIndex = index; onEpisodeClick(index)
-          }) { Text(episode.title) }
+          OutlinedButton(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+              comicIndex = index; onEpisodeClick(index)
+            }) { Text(episode.title, textAlign = TextAlign.Start) }
         }
       }
     }
-  } ?: run { EmptyCompose("暂无章节") }
+  } ?: run { LoadingOrShowMsg(errMsg) }
 }
 
