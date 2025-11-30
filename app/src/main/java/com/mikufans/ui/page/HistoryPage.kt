@@ -59,7 +59,6 @@ fun HistoryPage(navController: NavController, baseHorizontalPadding: Dp) {
   val coroutineScope = rememberCoroutineScope()
   var animationHistoryList by remember { mutableStateOf<List<History>>(emptyList()) }
   var comicHistoryList by remember { mutableStateOf<List<History>>(emptyList()) }
-  // 控制是否显示“清空确认”弹窗
   var showClearDialog by remember { mutableStateOf(false) }
   LaunchedEffect(Unit) {
     LocalStorage.getList(context, "view:history", History::class.java)?.let { histories ->
@@ -113,6 +112,8 @@ fun HistoryPage(navController: NavController, baseHorizontalPadding: Dp) {
       PrimaryTabRow(selectedTabIndex = pagerState.currentPage) {
         tabs.forEachIndexed { index, title ->
           Tab(
+            selectedContentColor = MaterialTheme.colorScheme.primary,
+            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             text = { Text(title) },
             selected = pagerState.currentPage == index,
             onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } }
@@ -217,7 +218,7 @@ fun HistoryContent(
                   else -> ""
                 },
                 type = currentItem.mediaType,
-                subId = currentItem.subId!!,
+                subId = currentItem.subId ?: "",
                 title = currentItem.nameCn ?: currentItem.name ?: ""
               )
             })

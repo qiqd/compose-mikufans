@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +21,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Source
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -112,6 +114,7 @@ fun IndexPage(
   val animationApi = AnimationApi.SOURCES_WITH_DELAY
   var isInit by rememberSaveable { mutableStateOf(false) }
   var msg by remember { mutableStateOf("") }
+  var showRefreshIndicator by rememberSaveable { mutableStateOf(false) }
   val fetchAnimation: suspend (k: String) -> Unit = { k ->
     loadingAnimation = true
     AnimationService.fetchSearchSync(k) {
@@ -165,6 +168,7 @@ fun IndexPage(
         return@launch
       }
       try {
+        msg = "刷新资源中"
         isRefreshing = true
         AnimationApi.initialization()
         ComicApi.initialization()
@@ -255,14 +259,29 @@ fun IndexPage(
           }),
       )
       //下拉刷新
-      PullToRefreshBox(state = pullToRefreshState, isRefreshing = isRefreshing, indicator = {
-        Indicator(
-          modifier = Modifier.align(Alignment.TopCenter),
-          isRefreshing = isRefreshing,
-          color = MaterialTheme.colorScheme.primary,
-          state = pullToRefreshState
-        )
-      }, onRefresh = { refreshSource() }) {
+      PullToRefreshBox(
+        state = pullToRefreshState,
+        isRefreshing = showRefreshIndicator && !isInit,
+        indicator = {
+          Indicator(
+            modifier = Modifier.align(Alignment.TopCenter),
+            isRefreshing = showRefreshIndicator && !isInit,
+            color = MaterialTheme.colorScheme.primary,
+            state = pullToRefreshState
+          )
+        },
+        onRefresh = {
+          if (isInit) {
+            return@PullToRefreshBox
+          }
+          showRefreshIndicator = true
+          coroutineScope.launch {
+            fetchAnimation(keyword)
+            fetchComic(keyword)
+            fetchNovel(keyword)
+            showRefreshIndicator = false
+          }
+        }) {
         Column(Modifier.fillMaxSize()) {
           PrimaryTabRow(selectedTabIndex = tabIndex.value) {
             tabs.forEachIndexed { index, title ->
@@ -287,7 +306,7 @@ fun IndexPage(
                 if (loadingAnimation) {
                   LoadingCompose()
                 } else {
-                  AnimationPage(animationResult, navController)
+                  AnimationPage(animationResult, navController, clickable = !isInit)
                 }
               }
 
@@ -295,7 +314,7 @@ fun IndexPage(
                 if (loadingComic) {
                   LoadingCompose()
                 } else {
-                  ComicPage(comicResult, navController)
+                  ComicPage(comicResult, navController, clickable = !isInit)
                 }
               }
 
@@ -303,7 +322,7 @@ fun IndexPage(
                 if (loadingNovel) {
                   LoadingCompose()
                 } else {
-                  NovelPage(novelResult, navController)
+                  NovelPage(novelResult, navController, clickable = !isInit)
                 }
               }
             }
@@ -321,30 +340,52 @@ fun IndexPage(
       ) {
         val tabs = arrayOf("动画", "漫画", "小说")
         val pagerState = rememberPagerState(pageCount = { tabs.size })
-        PrimaryTabRow(selectedTabIndex = pagerState.currentPage) {
-          tabs.forEachIndexed { index, title ->
-            Tab(
-              text = { Text(title) },
-              selected = pagerState.currentPage == index,
-              selectedContentColor = MaterialTheme.colorScheme.primary,
-              unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-              onClick = {
-                Log.i("IndexPage-Tab", "点击切换到$index")
-                coroutineScope.launch {
-                  pagerState.animateScrollToPage(index)
-                }
-              })
+        Row(
+          Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceAround,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text("资源列表")
+          IconButton(onClick = {
+            refreshSource()
+            coroutineScope.launch { sheetState.hide() }
+          }) {
+            Icon(imageVector = Icons.Default.Refresh, contentDescription = "刷新资源")
           }
         }
-        HorizontalPager(state = pagerState, userScrollEnabled = false) {
-          when (it) {
-            0 -> SourcePage(
-              source = AnimationApi.SOURCES_WITH_DELAY.toList(),
-              sheetState = sheetState
-            )
+        Column(Modifier.fillMaxWidth()) {
+          PrimaryTabRow(selectedTabIndex = pagerState.currentPage) {
+            tabs.forEachIndexed { index, title ->
+              Tab(
+                text = { Text(title) },
+                selected = pagerState.currentPage == index,
+                selectedContentColor = MaterialTheme.colorScheme.primary,
+                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                onClick = {
+                  Log.i("IndexPage-Tab", "点击切换到$index")
+                  coroutineScope.launch {
+                    pagerState.animateScrollToPage(index)
+                  }
+                })
+            }
+          }
+          HorizontalPager(state = pagerState, userScrollEnabled = false) {
+            when (it) {
+              0 -> SourcePage(
+                source = AnimationApi.SOURCES_WITH_DELAY.toList(),
+                sheetState = sheetState
+              )
 
-            1 -> SourcePage(source = ComicApi.SOURCES_WITH_DELAY.toList(), sheetState = sheetState)
-            2 -> SourcePage(source = NovelApi.SOURCES_WITH_DELAY.toList(), sheetState = sheetState)
+              1 -> SourcePage(
+                source = ComicApi.SOURCES_WITH_DELAY.toList(),
+                sheetState = sheetState
+              )
+
+              2 -> SourcePage(
+                source = NovelApi.SOURCES_WITH_DELAY.toList(),
+                sheetState = sheetState
+              )
+            }
           }
         }
 
@@ -389,7 +430,7 @@ fun SourcePage(source: List<SourceWithDelay>, sheetState: SheetState) {
 
 @Composable
 fun AnimationPage(
-  animations: List<Media>, navController: NavController,
+  animations: List<Media>, navController: NavController, clickable: Boolean = false
 ) {
   LazyColumn(
     contentPadding = PaddingValues(vertical = 5.dp),
@@ -409,9 +450,11 @@ fun AnimationPage(
           genre = it[index].genre,
           airDate = it[index].releaseDate,
           onTap = { id ->
-            Navigation.navigateToDetail(
-              id = id, title = it[index].titleCn, subId = "", navController = navController
-            )
+            if (clickable) {
+              Navigation.navigateToDetail(
+                id = id, title = it[index].titleCn, subId = "", navController = navController
+              )
+            }
           })
       }
     }
@@ -419,7 +462,7 @@ fun AnimationPage(
 }
 
 @Composable
-fun ComicPage(comics: List<Comic>, navController: NavController) {
+fun ComicPage(comics: List<Comic>, navController: NavController, clickable: Boolean = false) {
   LazyColumn(
     contentPadding = PaddingValues(vertical = 5.dp),
     verticalArrangement = Arrangement.spacedBy(5.dp),
@@ -440,10 +483,12 @@ fun ComicPage(comics: List<Comic>, navController: NavController) {
           author = it[index].author,
           mediaType = Navigation.TYPE_COMIC,
           onTap = { id ->
-            Navigation.navigateToDetail(
-              type = Navigation.TYPE_COMIC,
-              id = id, title = it[index].titleCn, subId = "", navController = navController
-            )
+            if (clickable) {
+              Navigation.navigateToDetail(
+                type = Navigation.TYPE_COMIC,
+                id = id, title = it[index].titleCn, subId = "", navController = navController
+              )
+            }
           })
       }
     }
@@ -451,6 +496,6 @@ fun ComicPage(comics: List<Comic>, navController: NavController) {
 }
 
 @Composable
-fun NovelPage(novel: List<Any>, navController: NavController) {
+fun NovelPage(novel: List<Any>, navController: NavController, clickable: Boolean = false) {
 
 }

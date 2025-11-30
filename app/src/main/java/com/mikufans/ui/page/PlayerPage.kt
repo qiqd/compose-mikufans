@@ -1,6 +1,5 @@
 package com.mikufans.ui.page
 
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
@@ -111,7 +110,7 @@ fun PlaybackPage(
     LocalStorage.getList(content, "view:history", History::class.java)?.toMutableList()
       ?.let { localHistory = it }
     historyIndex =
-      localHistory.indexOfFirst { it.subId == subId && it.mediaType == Navigation.TYPE_ANIMATION }
+      localHistory.indexOfFirst { it.nameCn == detail?.media?.titleCn && it.mediaType == Navigation.TYPE_ANIMATION }
     if (historyIndex >= 0) {
       episodeIndex = localHistory[historyIndex].episodeIndex ?: 0
       currentPosition = localHistory[historyIndex].position ?: 0L
@@ -174,7 +173,6 @@ fun PlaybackPage(
   /* 初始数据加载 */
   LaunchedEffect(Unit) {
     if (exoPlayer.currentMediaItem != null) return@LaunchedEffect
-    Log.e("PlayerPage receive", "id: $id, subId: $subId, title: $title")
     loadLocalHistory()
     fetchPlayerInfo()
   }
@@ -191,7 +189,7 @@ fun PlaybackPage(
         val animation = detail?.media
         CapVideoPlayer(
           isLoading = isLoading,
-          title = animation?.title ?: "暂无标题",
+          title = animation?.titleCn ?: "暂无标题",
           showNextButton = false,
           showPreviousButton = false,
           navController = navController,

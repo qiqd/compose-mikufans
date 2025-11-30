@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -56,7 +57,7 @@ fun SubscribePage(
   BackHandler { activity.moveTaskToBack(true) }
   Scaffold(
     modifier = Modifier.padding(horizontal = baseHorizontalPadding),
-    topBar = { TopAppBar(title = { Text("追番") }) },
+    topBar = { TopAppBar(title = { Text("收藏") }) },
   ) { innerPadding ->
     Column(
       modifier = Modifier
@@ -69,6 +70,8 @@ fun SubscribePage(
       PrimaryTabRow(selectedTabIndex = pagerState.currentPage) {
         tabs.forEachIndexed { index, title ->
           Tab(
+            selectedContentColor = MaterialTheme.colorScheme.primary,
+            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             text = { Text(title) },
             selected = pagerState.currentPage == index,
             onClick = {
@@ -107,10 +110,6 @@ fun SubscribeContent(loveList: List<History>, navController: NavController) {
             titleCn = loveList[index].nameCn,
             coverUrl = loveList[index].cover,
             author = loveList[index].author,
-            mediaType = when (loveList[index].mediaType) {
-              Navigation.TYPE_COMIC -> "漫画"
-              else -> "动画"
-            },
             onTap = { _ ->
               Navigation.navigateToDetail(
                 navController = navController,
@@ -119,7 +118,7 @@ fun SubscribeContent(loveList: List<History>, navController: NavController) {
                   else -> ""
                 },
                 type = loveList[index].mediaType,
-                subId = loveList[index].subId!!,
+                subId = loveList[index].subId ?: "",
                 title = loveList[index].nameCn ?: ""
               )
             }

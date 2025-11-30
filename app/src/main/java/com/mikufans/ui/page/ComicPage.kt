@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -52,6 +54,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -76,7 +80,7 @@ import org.anime.entity.base.ViewInfo
 @Composable
 fun ComicPage(id: String, navController: NavController, baseHorizontalPadding: Dp) {
   val context = LocalContext.current
-  val readMode = listOf("垂直", "反向", "默认")
+  val readMode = listOf("条漫", "反向", "默认")
   var msg by rememberSaveable { mutableStateOf("") }
   var showController by rememberSaveable { mutableStateOf(true) }
   var showChapter by rememberSaveable { mutableStateOf(false) }
@@ -130,7 +134,7 @@ fun ComicPage(id: String, navController: NavController, baseHorizontalPadding: D
     ComicService.fetchViewSync(detail?.sources[0]?.episodes[id.toInt()]?.id) {
       msg = "加载章节出错"
       Log.e("加载章节出错", it.toString())
-    }.let { viewInfo = it }
+    }.let { viewInfo = it; loadLocalHistory() }
   }
   //初次加载漫画详情
   LaunchedEffect(Unit) {
@@ -233,13 +237,17 @@ fun ComicPage(id: String, navController: NavController, baseHorizontalPadding: D
         viewInfo?.let {
           when (readModeIndex) {
             0 -> viewInfo?.let {
-              VerticalReader(it, initIndex = initPageIndex)
+              VerticalReader(it, initIndex = initPageIndex) { idx ->
+                initPageIndex = idx
+              }
             } ?: run {
               LoadingOrShowMsg(msg)
             }
 
             1 -> viewInfo?.let {
-              DefaultReader(it, initIndex = initPageIndex)
+              DefaultReader(it, initIndex = initPageIndex) { idx ->
+                initPageIndex = idx
+              }
 
             } ?: run {
               LoadingOrShowMsg(msg)
@@ -334,19 +342,64 @@ private fun DefaultReader(
   reverse: Boolean = false,
   onIndexChange: (Int) -> Unit = {}
 ) {
-  val content = LocalContext.current
+  val context = LocalContext.current
   val pagerState = rememberPagerState(initialPage = initIndex, pageCount = { viewInfo.urls.size })
+
   LaunchedEffect(pagerState.currentPage) {
     onIndexChange(pagerState.currentPage)
   }
-  HorizontalPager(state = pagerState, reverseLayout = reverse) {
-    AsyncImage(
-      modifier = Modifier.fillMaxSize(),
-      contentScale = ContentScale.Fit,
-      model = viewInfo.urls[it],
-      contentDescription = viewInfo.episodeName,
-      placeholder = GifLoader.gifPlaceholder(R.drawable.loading, content),
-    )
+
+  var scale by remember { mutableStateOf(1f) }
+  var offsetX by remember { mutableStateOf(0f) }
+  var offsetY by remember { mutableStateOf(0f) }
+
+  /* 关键：只有放大时才拦截手势 */
+  val enableGesture = scale > 1f
+
+  HorizontalPager(
+    state = pagerState,
+    reverseLayout = reverse,
+    /* 放大时禁止 pager 自身滚动 */
+    userScrollEnabled = !enableGesture
+  ) { page ->
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        /* 用 pointerInput(enableGesture) 开关手势 */
+        .pointerInput(enableGesture) {
+          // 未放大时直接返回，让 pager 自己处理
+          if (!enableGesture) return@pointerInput
+
+          // 放大时进入手势处理
+          detectTransformGestures(
+            onGesture = { _, pan, zoom, _ ->
+              val newScale = (scale * zoom).coerceIn(1f, 5f)
+              scale = newScale
+              val newX = offsetX + pan.x
+              val newY = offsetY + pan.y
+              val maxX = (size.width * (scale - 1)) / 2
+              val maxY = (size.height * (scale - 1)) / 2
+              offsetX = newX.coerceIn(-maxX, maxX)
+              offsetY = newY.coerceIn(-maxY, maxY)
+            }
+          )
+        }
+    ) {
+      AsyncImage(
+        model = viewInfo.urls[page],
+        contentDescription = viewInfo.episodeName,
+        placeholder = GifLoader.gifPlaceholder(R.drawable.loading, context),
+        contentScale = ContentScale.Fit,
+        modifier = Modifier
+          .fillMaxSize()
+          .graphicsLayer(
+            scaleX = scale,
+            scaleY = scale,
+            translationX = offsetX,
+            translationY = offsetY
+          )
+      )
+    }
   }
 }
 
@@ -357,11 +410,16 @@ private fun VerticalReader(
   onIndexChange: (Int) -> Unit = {}
 ) {
   val content = LocalContext.current
-  val initIndex = initIndex
-  initIndex.coerceIn(0, viewInfo.urls.size - 1)
-  val state = rememberLazyListState(initIndex)
-  LaunchedEffect(state) {
-    snapshotFlow { state.firstVisibleItemIndex }
+  val initIndex = initIndex.coerceIn(0, viewInfo.urls.size - 1)
+  val listState = rememberLazyListState(initIndex)
+
+  /* 新增：缩放状态 */
+  var scale by remember { mutableStateOf(1f) }
+  var offsetX by remember { mutableStateOf(0f) }
+  var offsetY by remember { mutableStateOf(0f) }
+
+  LaunchedEffect(listState) {
+    snapshotFlow { listState.firstVisibleItemIndex }
       .collect { index ->
         awaitFrame()
         onIndexChange(index)
@@ -369,15 +427,39 @@ private fun VerticalReader(
   }
 
   LazyColumn(
-    modifier = Modifier.fillMaxSize(),
+    state = listState,
+    modifier = Modifier
+      .fillMaxSize()
+      /* 新增：手势监听 */
+      .pointerInput(Unit) {
+        detectTransformGestures { _, pan, zoom, _ ->
+          scale = (scale * zoom).coerceIn(1f, 5f)   // 最大放大 5 倍
+          val newOffsetX = offsetX + pan.x
+          val newOffsetY = offsetY + pan.y
+          /* 边界限制：不允许无限拖动 */
+          val maxX = (size.width * (scale - 1)) / 2
+          val maxY = (size.height * (scale - 1)) / 2
+          offsetX = newOffsetX.coerceIn(-maxX, maxX)
+          offsetY = newOffsetY.coerceIn(-maxY, maxY)
+        }
+      }
   ) {
-    items(viewInfo.urls.size) {
+    items(count = viewInfo.urls.size, key = { viewInfo.urls[it] }) { idx ->
       AsyncImage(
-        modifier = Modifier.fillMaxSize(),
-        contentScale = ContentScale.Fit,
-        model = viewInfo.urls[it],
+        model = viewInfo.urls[idx],
         contentDescription = viewInfo.episodeName,
         placeholder = GifLoader.gifPlaceholder(R.drawable.loading, content),
+        contentScale = ContentScale.Fit,
+        modifier = Modifier
+          .fillMaxWidth()
+          .wrapContentHeight()
+          /* 新增：应用缩放与偏移 */
+          .graphicsLayer(
+            scaleX = scale,
+            scaleY = scale,
+            translationX = offsetX,
+            translationY = offsetY
+          )
       )
     }
   }

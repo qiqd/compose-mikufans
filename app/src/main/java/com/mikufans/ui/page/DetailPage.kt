@@ -31,9 +31,7 @@ import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -63,6 +61,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.mikufans.R
@@ -109,7 +109,7 @@ fun DetailPage(
     LocalStorage.getList(context, "view:history", History::class.java)?.let { histories ->
       localHistory = histories
       historyIndex = if (id.isNotBlank()) {
-        histories.indexOfFirst { it.id == id }
+        histories.indexOfFirst { it.nameCn == title }
       } else {
         histories.indexOfFirst { it.subId == subId }
       }
@@ -125,9 +125,16 @@ fun DetailPage(
       subId = subId,
       name = mediaDetail?.media?.title,
       nameCn = mediaDetail?.media?.titleCn,
+      time = System.currentTimeMillis(),
       mediaType = type,
       isLove = love,
-      chapterName = mediaDetail?.sources[0]?.episodes?.get(chapterIndex)?.title,
+      chapterName = mediaDetail?.sources
+        ?.takeIf { it.isNotEmpty() }
+        ?.getOrNull(0)
+        ?.episodes
+        ?.takeIf { it.isNotEmpty() }
+        ?.getOrNull(chapterIndex)
+        ?.title,
       cover = mediaDetail?.media?.coverUrls[0]
     ).apply {
       if (type == Navigation.TYPE_COMIC) {
@@ -136,7 +143,8 @@ fun DetailPage(
     }
     localHistory = localHistory.toMutableList()
       .apply { add(history) }
-      .groupBy { it.id }
+      .filter { it.nameCn.isNullOrBlank().not() }
+      .groupBy { it.nameCn }
       .map { (_, value) -> value.maxBy { it.time } }
       .sortedByDescending { it.time }
     LocalStorage.setList(context, "view:history", localHistory)
@@ -173,7 +181,7 @@ fun DetailPage(
   val fetchDetail: suspend () -> Unit = {
     when (type) {
       Navigation.TYPE_ANIMATION -> {
-        loadMetadata()
+//        loadMetadata()
         if (id.isBlank()) {
           AnimationService.fetchSearchSync(title) {
             scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
@@ -187,6 +195,7 @@ fun DetailPage(
         AnimationService.fetchDetailSync(id) {
           scope.launch { Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show() }
         }?.let { item ->
+          mediaDetail = item
           GlobalSharedValue.mediaDetail = item
         }
       }
@@ -198,7 +207,7 @@ fun DetailPage(
       }
 
       else -> {
-//todo novel case
+        //todo novel case
       }
     }
   }
@@ -207,14 +216,17 @@ fun DetailPage(
     if (mediaDetail != null) return@LaunchedEffect
     scope.launch {
       fetchDetail()
-      if (type == Navigation.TYPE_ANIMATION) loadMetadata()
+//      if (type == Navigation.TYPE_ANIMATION) loadMetadata()
       loadLocalHistory()
     }
 
   }
-
+  LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+    loadLocalHistory()
+  }
   Scaffold(
-    modifier = Modifier.padding(horizontal = baseHorizontalPadding), topBar = {
+    modifier = Modifier.padding(horizontal = baseHorizontalPadding),
+    topBar = {
       TopAppBar(title = { Text("详情") }, navigationIcon = {
         IconButton(onClick = { navController.popBackStack() }) {
           Icon(
@@ -222,59 +234,33 @@ fun DetailPage(
           )
         }
       })
-    }, floatingActionButton = {
-      Column {
-        if (type == Navigation.TYPE_ANIMATION) {
-          IconButton(
-            enabled = !loadingMetaData, onClick = {
-              if (GlobalSharedValue.mediaDetail?.sources.isNullOrEmpty()) {
-                Toast.makeText(context, "暂无播放源", Toast.LENGTH_SHORT).show()
-                return@IconButton
-              }
-              Navigation.navigateToPlayer(id, subId, "", navController)
-            }) {
-            Icon(
-              imageVector = Icons.Outlined.PlayArrow,
-              tint = MaterialTheme.colorScheme.primary,
-              modifier = Modifier
-                .fillMaxSize()
-                .padding(0.dp),
-              contentDescription = "play"
-            )
-          }
-        }
-        IconButton(
-          enabled = !loadingMetaData, onClick = {
-            love = !love;
-            updateHistory()
-            Toast.makeText(
-              context, if (love) "收藏成功" else "取消收藏", Toast.LENGTH_SHORT
-            ).show()
-          }) {
-          if (love) {
-            Icon(
-              imageVector = Icons.Default.Favorite,
-              tint = MaterialTheme.colorScheme.primary,
-              contentDescription = "love"
-            )
-          } else {
-            Icon(
-              imageVector = Icons.Default.FavoriteBorder,
-              contentDescription = "unlove"
-            )
-          }
-        }
-
-      }
-    }, floatingActionButtonPosition = FabPosition.End
+    },
   ) { innerPadding ->
     Column(
+      verticalArrangement = Arrangement.spacedBy(baseHorizontalPadding),
       modifier = Modifier
         .fillMaxSize()
         .padding(innerPadding),
     ) {
       if (mediaDetail != null) {
-        HeaderRow(detail = mediaDetail!!, baseHorizontalPadding = baseHorizontalPadding)
+        HeaderRow(
+          detail = mediaDetail!!,
+          mediaType = type,
+          baseHorizontalPadding = baseHorizontalPadding,
+          love = love,
+          onPlayTab = {
+            Navigation.navigateToPlayer(
+              id = mediaDetail!!.media.id ?: "",
+              subId = mediaDetail!!.media.id ?: "",
+              title = mediaDetail!!.media.titleCn ?: mediaDetail!!.media.title ?: "暂无标题",
+              navController = navController
+            )
+          },
+          onLoveTab = {
+            love = !love
+            updateHistory()
+          }
+        )
       }
       when (type) {
         Navigation.TYPE_ANIMATION -> {
@@ -288,7 +274,7 @@ fun DetailPage(
         }
 
         else -> {
-          EmptyCompose()
+          LoadingOrShowMsg(errMsg)
         }
       }
     }
@@ -299,29 +285,40 @@ fun DetailPage(
  * 详情页头部
  */
 @Composable
-private fun HeaderRow(detail: Detail, baseHorizontalPadding: Dp, love: Boolean = false) {
+private fun HeaderRow(
+  detail: Detail,
+  baseHorizontalPadding: Dp,
+  love: Boolean = false,
+  mediaType: String,
+  onPlayTab: () -> Unit,
+  onLoveTab: () -> Unit
+) {
   Row(
     modifier = Modifier
-      .fillMaxWidth()
-      .height(200.dp),
+      .height(200.dp)
+      .fillMaxWidth(),
     horizontalArrangement = Arrangement.spacedBy(baseHorizontalPadding)
   ) {
     val media = detail.media
-    AsyncImage(
-      model = media.coverUrls.firstOrNull(),
-      contentDescription = media.titleCn ?: media.title,
-      placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current),
-      modifier = Modifier
+    Column(
+      Modifier
         .fillMaxHeight()
-        .aspectRatio(2.5f / 3f)
-        .clip(MaterialTheme.shapes.medium)
-    )
-
+    ) {
+      AsyncImage(
+        model = media.coverUrls.firstOrNull(),
+        contentDescription = media.titleCn ?: media.title,
+        placeholder = GifLoader.gifPlaceholder(R.drawable.loading, LocalContext.current),
+        modifier = Modifier
+          .fillMaxHeight()
+          .aspectRatio(2.5f / 3f)
+          .clip(MaterialTheme.shapes.medium)
+      )
+    }
     Column(
       modifier = Modifier
         .weight(1f)
-        .verticalScroll(rememberScrollState())
-        .fillMaxHeight(),
+        .fillMaxSize()
+        .verticalScroll(rememberScrollState()),
       verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
       media.titleCn?.let {
@@ -344,17 +341,20 @@ private fun HeaderRow(detail: Detail, baseHorizontalPadding: Dp, love: Boolean =
       }
       media.genre?.let {
         Text(
+          maxLines = 2,
+          overflow = TextOverflow.Ellipsis,
           text = it, style = MaterialTheme.typography.bodyMedium, color = Color.Gray
         )
       }
       if (media is Animation) {
-        media.totalEpisode?.let {
+        media.totalEpisode.takeIf {
+          !(it.isNullOrBlank())
+        }?.let {
           Text(
             text = "共 $it 集", style = MaterialTheme.typography.bodyMedium, color = Color.Gray
           )
         }
       }
-
       if (!media.rating.isNullOrBlank()) {
         Text(
           text = "${media.rating} 分 / ${media.ratingCount} 人评分",
@@ -367,7 +367,40 @@ private fun HeaderRow(detail: Detail, baseHorizontalPadding: Dp, love: Boolean =
           text = it, style = MaterialTheme.typography.bodySmall, color = Color.Gray
         )
       }
-      Spacer(Modifier.weight(1f))
+      Spacer(
+        Modifier
+          .weight(1f)
+          .fillMaxSize()
+      )
+      Row(
+        Modifier
+          .fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+      ) {
+        if (mediaType == Navigation.TYPE_ANIMATION) {
+          OutlinedButton(onClick = { onPlayTab() }, Modifier.weight(1f)) {
+            Icon(
+              imageVector = Icons.Outlined.PlayArrow,
+              contentDescription = "play"
+            )
+          }
+        }
+        if (love) {
+          Button(onClick = { onLoveTab() }) {
+            Icon(
+              imageVector = Icons.Default.Favorite,
+              contentDescription = "love"
+            )
+          }
+        } else {
+          OutlinedButton(onClick = { onLoveTab() }) {
+            Icon(
+              imageVector = Icons.Default.FavoriteBorder,
+              contentDescription = "unlove"
+            )
+          }
+        }
+      }
     }
   }
 }
@@ -544,18 +577,22 @@ private fun AnimationPart(
         }
       }
     } ?: run {
-      Box(Modifier.fillMaxSize(), Alignment.Center) {
-        CircularProgressIndicator()
+      Box(
+        Modifier
+          .fillMaxSize()
+          .padding(top = baseHorizontalPadding), Alignment.Center
+      ) {
+//        CircularProgressIndicator()
+
+        ExpandableDescription(
+          description = metadata.media?.description ?: "暂无简介",
+          baseHorizontalPadding = baseHorizontalPadding
+        )
       }
     }
+
   } ?: run {
-    Box(Modifier.fillMaxSize(), Alignment.Center) {
-      errMsg?.let {
-        EmptyCompose(it)
-      } ?: run {
-        CircularProgressIndicator()
-      }
-    }
+    LoadingOrShowMsg(errMsg)
   }
 }
 
