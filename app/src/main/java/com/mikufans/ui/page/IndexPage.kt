@@ -335,6 +335,7 @@ fun IndexPage(
     // 底部弹窗
     if (sheetState.isVisible) {
       ModalBottomSheet(
+        modifier = Modifier.fillMaxSize(),
         onDismissRequest = {
           coroutineScope.launch { sheetState.hide() }
         }, sheetState = sheetState
