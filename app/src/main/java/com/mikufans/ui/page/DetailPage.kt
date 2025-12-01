@@ -341,7 +341,7 @@ private fun HeaderRow(
       }
       media.genre?.let {
         Text(
-          maxLines = 2,
+          maxLines = 1,
           overflow = TextOverflow.Ellipsis,
           text = it, style = MaterialTheme.typography.bodyMedium, color = Color.Gray
         )

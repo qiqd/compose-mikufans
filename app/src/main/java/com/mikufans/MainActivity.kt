@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -123,6 +124,8 @@ fun MainScreen(activity: ComponentActivity) {
             icon = { Icon(screen.icon, contentDescription = screen.title) },
             selected = currentDestination == screen.route,
             colors = NavigationBarItemDefaults.colors(
+              selectedIconColor = MaterialTheme.colorScheme.primary,
+              unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
             ),
             onClick = {
               navController.navigate(screen.route) {

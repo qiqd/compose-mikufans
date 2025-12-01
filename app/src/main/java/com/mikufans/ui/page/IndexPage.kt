@@ -72,6 +72,7 @@ import com.mikufans.ui.component.LoadingCompose
 import com.mikufans.ui.component.MediaCard
 import com.mikufans.ui.nav.Navigation
 import com.mikufans.util.GifLoader
+import com.mikufans.util.GlobalSharedValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
@@ -145,11 +146,9 @@ fun IndexPage(
   }
   val fetchSearch: (keyword: String) -> Unit = { k ->
     if (!isInit) {
-      coroutineScope.launch {
-        fetchAnimation(k)
-        fetchComic(k)
-        fetchNovel(k)
-      }
+      coroutineScope.launch { fetchAnimation(k) }
+      coroutineScope.launch { fetchComic(k) }
+      coroutineScope.launch { fetchNovel(k) }
     } else {
       msg = "初始化资源中..."
     }
@@ -193,6 +192,7 @@ fun IndexPage(
       coroutineScope.launch(Dispatchers.IO) {
         try {
           isInit = true
+          GlobalSharedValue.isInit = true
           msg = "初始化资源中"
           AnimationApi.initialization()
           ComicApi.initialization()
@@ -209,6 +209,7 @@ fun IndexPage(
           msg = e.message ?: "未知错误"
         } finally {
           isInit = false
+          GlobalSharedValue.isInit = false
         }
       }
     }

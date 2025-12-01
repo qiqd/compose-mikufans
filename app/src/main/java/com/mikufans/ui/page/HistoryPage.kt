@@ -1,4 +1,5 @@
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +49,7 @@ import com.mikufans.entity.History
 import com.mikufans.ui.component.EmptyCompose
 import com.mikufans.ui.component.MediaCard
 import com.mikufans.ui.nav.Navigation
+import com.mikufans.util.GlobalSharedValue
 import com.mikufans.util.LocalStorage
 import kotlinx.coroutines.launch
 
@@ -75,6 +78,11 @@ fun HistoryPage(navController: NavController, baseHorizontalPadding: Dp) {
     comicHistoryList = emptyList()
     updateHistory()
     showClearDialog = false
+  }
+  DisposableEffect(Unit) {
+    onDispose {
+      updateHistory()
+    }
   }
   // 显示清空确认弹窗
   if (showClearDialog) {
@@ -146,6 +154,7 @@ fun HistoryContent(
   onHistoryUpdate: (List<History>) -> Unit
 ) {
   val lazyGridState = rememberLazyListState()
+  val current = LocalContext.current
   if (historyList.isEmpty()) {
     EmptyCompose(text = "暂无历史记录")
   } else {
@@ -155,7 +164,7 @@ fun HistoryContent(
       verticalArrangement = Arrangement.spacedBy(5.dp),
       modifier = Modifier.fillMaxSize()
     ) {
-      items(historyList.size, key = { index -> historyList[index].hashCode() }) { index ->
+      items(historyList.size, key = { index -> historyList[index].time }) { index ->
         val currentItem = historyList[index]
         val dismissState = rememberSwipeToDismissBoxState()
         SwipeToDismissBox(
@@ -211,6 +220,10 @@ fun HistoryContent(
               else -> "漫画"
             },
             onTap = { _ ->
+              if (GlobalSharedValue.isInit) {
+                Toast.makeText(current, "初始化资源中，请稍候", Toast.LENGTH_SHORT).show()
+                return@MediaCard
+              }
               Navigation.navigateToDetail(
                 navController = navController,
                 id = when (currentItem.mediaType) {

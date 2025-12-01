@@ -1,5 +1,6 @@
 package com.mikufans.ui.page
 
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +34,7 @@ import com.mikufans.entity.History
 import com.mikufans.ui.component.EmptyCompose
 import com.mikufans.ui.component.MediaCard
 import com.mikufans.ui.nav.Navigation
+import com.mikufans.util.GlobalSharedValue
 import com.mikufans.util.LocalStorage
 import kotlinx.coroutines.launch
 
@@ -94,6 +96,7 @@ fun SubscribePage(
 
 @Composable
 fun SubscribeContent(loveList: List<History>, navController: NavController) {
+  val current = LocalContext.current
   if (loveList.isEmpty()) {
     EmptyCompose()
   } else {
@@ -111,6 +114,10 @@ fun SubscribeContent(loveList: List<History>, navController: NavController) {
             coverUrl = loveList[index].cover,
             author = loveList[index].author,
             onTap = { _ ->
+              if (GlobalSharedValue.isInit) {
+                Toast.makeText(current, "初始化资源中，请稍候", Toast.LENGTH_SHORT).show()
+                return@MediaCard
+              }
               Navigation.navigateToDetail(
                 navController = navController,
                 id = when (loveList[index].mediaType) {
